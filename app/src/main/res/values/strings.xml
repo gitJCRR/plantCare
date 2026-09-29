@@ -1,3 +1,31 @@
 <resources>
     <string name="app_name">PlantCare</string>
+
+    <!-- Navegación -->
+    <string name="nav_home">Mis plantas</string>
+    <string name="nav_light">Luz</string>
+    <string name="nav_settings">Perfil</string>
+
+    <!-- Acciones comunes -->
+    <string name="action_back">Volver</string>
+    <string name="action_save">Guardar</string>
+
+    <!-- Login / registro -->
+    <string name="login_title">Iniciar sesión</string>
+    <string name="login_action">Entrar</string>
+    <string name="login_go_register">¿No tienes cuenta? Regístrate</string>
+    <string name="register_title">Crear cuenta</string>
+    <string name="register_action">Registrarme</string>
+    <string name="register_go_login">Ya tengo cuenta</string>
+
+    <!-- Pantallas -->
+    <string name="home_title">Mis plantas</string>
+    <string name="home_add_plant">Añadir planta</string>
+    <string name="detail_title">Planta #%1$d</string>
+    <string name="detail_edit">Editar</string>
+    <string name="edit_title_new">Nueva planta</string>
+    <string name="edit_title_edit">Editar planta #%1$d</string>
+    <string name="light_title">Medidor de luz</string>
+    <string name="settings_title">Perfil y ajustes</string>
+    <string name="settings_logout">Cerrar sesión</string>
 </resources>
