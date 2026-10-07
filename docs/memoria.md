@@ -36,13 +36,13 @@ problema real y permite aplicar la mayoría de los contenidos de la asignatura.
 
 | Pantalla | Ruta | Descripción |
 |---|---|---|
-| Login | `LoginRoute` | Acceso con email y contraseña (destino inicial) |
-| Registro | `RegisterRoute` | Alta de usuario si no tiene cuenta |
+| Login | `LoginRoute` | Acceso con email y contraseña (Firebase); validación, mostrar/ocultar contraseña y recuperación por correo. Destino inicial si no hay sesión |
+| Registro | `RegisterRoute` | Alta de usuario con confirmación de contraseña |
 | Mis plantas (inicio) | `HomeRoute` | Rejilla con las plantas del usuario, ordenadas por próximo riego; aviso «Toca regar» |
 | Detalle | `PlantDetailRoute(plantId)` | Ficha de la planta, botones Regar / Abonar / Podar / Trasplantar, historial de cuidados, editar y borrar |
 | Añadir / editar | `PlantEditRoute(plantId)` | Formulario validado (y foto de la cámara en la fase 7); `plantId = -1` crea una nueva |
 | Medidor de luz | `LightMeterRoute` | Lectura del sensor de luz ambiental en lux |
-| Perfil / ajustes | `SettingsRoute` | Datos del usuario, recordatorios, cerrar sesión |
+| Perfil / ajustes | `SettingsRoute` | Email de la cuenta y cierre de sesión con confirmación *(fase 6: ajustes de recordatorios y tema)* |
 
 La navegación usa **Navigation Compose con rutas type-safe**: cada destino es una clase
 `@Serializable` y los parámetros (como `plantId`) viajan como propiedades tipadas en lugar de
@@ -51,15 +51,22 @@ cadenas, lo que evita errores en tiempo de ejecución.
 Flujo principal:
 
 ```
-Login ──► Registro
-  │           │
-  └─────┬─────┘  (se limpia la pila: no se puede volver al login con «atrás»)
-        ▼
-  ┌── Mis plantas ──► Detalle(plantId) ──► Editar(plantId)
-  │        └────────► Añadir planta
-  ├── Luz
-  └── Perfil ──► Cerrar sesión ──► Login (se limpia la pila)
+Abrir la app ──► ¿hay sesión de Firebase? ──sí──► Mis plantas
+                        │ no
+                        ▼
+                      Login ──► Registro
+                        │           │
+                        └─────┬─────┘  (se limpia la pila: no se puede volver al login con «atrás»)
+                              ▼
+        ┌── Mis plantas ──► Detalle(plantId) ──► Editar(plantId)
+        │        └────────► Añadir planta
+        ├── Luz
+        └── Perfil ──► Cerrar sesión ──► Login (se limpia la pila)
 ```
+
+El destino inicial se decide al abrir la app con `SessionViewModel`: Firebase recuerda la sesión,
+así que un usuario que ya entró no vuelve a ver el login. Si la sesión se cierra, `PlantCareApp`
+detecta el cambio de usuario y navega al login borrando la pila.
 
 *(Pendiente: capturas de cada pantalla.)*
 
@@ -73,16 +80,16 @@ Se sigue la arquitectura vista en clase: **UI → ViewModel → Repository → f
 │  (Compose)       │ ◄────────────────────────── │  @HiltViewModel   │
 └──────────────────┘  estado (StateFlow<UiState>)└─────────┬─────────┘
                                                            │ suspend / Flow
-                                                 ┌─────────▼─────────┐
-                                                 │  PlantRepository  │ (interfaz)
-                                                 │  PlantRepositoryImpl
-                                                 └─────────┬─────────┘
-                                                           │
-                                                 ┌─────────▼─────────┐
-                                                 │ Room: PlantDao,   │
-                                                 │ CareEventDao      │
-                                                 └───────────────────┘
-                 Hilt crea e inyecta cada pieza (di/DatabaseModule, di/RepositoryModule)
+                                ┌──────────────────────────┴───────────────┐
+                      ┌─────────▼─────────┐                    ┌─────────▼─────────┐
+                      │  PlantRepository  │ ──usuario actual──►│  AuthRepository   │ (interfaces)
+                      │  PlantRepositoryImpl                   │  FirebaseAuthRepository
+                      └─────────┬─────────┘                    └─────────┬─────────┘
+                      ┌─────────▼─────────┐                    ┌─────────▼─────────┐
+                      │ Room: PlantDao,   │                    │ Firebase          │
+                      │ CareEventDao      │                    │ Authentication    │
+                      └───────────────────┘                    └───────────────────┘
+       Hilt crea e inyecta cada pieza (di/DatabaseModule, di/FirebaseModule, di/RepositoryModule)
 ```
 
 - **UI (Compose):** cada pantalla tiene dos funciones. `XxxScreen` obtiene el ViewModel con
@@ -95,8 +102,11 @@ Se sigue la arquitectura vista en clase: **UI → ViewModel → Repository → f
   actualiza historial y fechas en una transacción).
 - **Modelo de dominio** (`model/`): `Plant` y `CareEvent` son independientes de Room. La lógica de
   riego (próximo riego, días restantes, si toca regar) está en el modelo y tiene pruebas unitarias.
-- **Fuentes de datos:** Room (plantas y cuidados) y Firebase Authentication (usuarios, fase 5).
-- **Hilt** crea e inyecta todas las dependencias (base de datos, repositorios, ViewModels).
+- **Fuentes de datos:** Room (plantas y cuidados) y Firebase Authentication (usuarios). Cada una
+  tiene su repositorio; `PlantRepositoryImpl` pide a `AuthRepository` el usuario actual para
+  filtrar las plantas, sin saber que por debajo está Firebase.
+- **Hilt** crea e inyecta todas las dependencias (base de datos, `FirebaseAuth`, repositorios,
+  ViewModels). En las pruebas se sustituye Firebase por un `FakeAuthRepository`.
 
 Organización de paquetes:
 
@@ -104,21 +114,22 @@ Organización de paquetes:
 com.tareaandroid.plantcare
 ├── PlantCareApp.kt            @HiltAndroidApp
 ├── MainActivity.kt            @AndroidEntryPoint
-├── model/                     modelo de dominio: Plant, CareEvent, LightLevel, CareType
+├── model/                     modelo de dominio: Plant, CareEvent, User, LightLevel, CareType
 ├── data/
+│   ├── auth/                  AuthRepository (interfaz) y FirebaseAuthRepository
 │   ├── local/                 PlantCareDatabase, Converters, Mappers (entidad <-> modelo)
 │   │   ├── entity/            PlantEntity, CareEventEntity (tablas)
 │   │   └── dao/               PlantDao, CareEventDao (consultas)
 │   └── repository/            PlantRepository (interfaz) y PlantRepositoryImpl
-├── di/                        DatabaseModule, RepositoryModule (Hilt)
-├── navigation/                Routes, TopLevelDestination, PlantCareNavHost
+├── di/                        DatabaseModule, FirebaseModule, RepositoryModule (Hilt)
+├── navigation/                Routes, TopLevelDestination, PlantCareNavHost, SessionViewModel
 └── ui/
-    ├── auth/                  login y registro
+    ├── auth/                  Login/Register Screen + ViewModel, AuthValidator, componentes
     ├── home/                  HomeScreen, HomeViewModel, PlantCard
     ├── detail/                PlantDetailScreen, PlantDetailViewModel
     ├── edit/                  PlantEditScreen, PlantEditViewModel
     ├── light/                 medidor de luz
-    ├── settings/              perfil y ajustes
+    ├── settings/              SettingsScreen, SettingsViewModel
     ├── components/            componentes y textos reutilizables
     └── theme/                 tema Material 3
 ```
@@ -140,8 +151,21 @@ Se combinan dos tecnologías según la naturaleza de cada dato:
 
 - **Room (SQLite local)** para las plantas y su historial: son datos del dispositivo que deben
   estar disponibles sin conexión y consultarse de forma reactiva.
-- **Firebase Authentication** para los usuarios *(fase 5)*: gestiona registro, contraseñas y
-  sesión de forma segura sin guardar credenciales en el móvil.
+- **Firebase Authentication** para los usuarios: gestiona registro, contraseñas, recuperación por
+  correo y sesión de forma segura. La app nunca guarda contraseñas; solo recibe el **uid** del
+  usuario, que se usa como `userId` en la tabla `plants`.
+
+**¿Por qué Firebase y no una tabla de usuarios en Room?** El enunciado admite Room y/o Firebase.
+Se valoró guardar los usuarios en Room con la contraseña cifrada (hash + sal), pero se eligió
+Firebase porque es la solución real para autenticación (seguridad gestionada por Google,
+recuperación de contraseña por email, la misma cuenta en varios dispositivos) y permite demostrar
+el patrón Repository con **dos fuentes de datos distintas**.
+
+**Configuración de Firebase:** proyecto `plantcare-cba07` en la consola de Firebase, app Android
+registrada con el paquete `com.tareaandroid.plantcare` y proveedor *Correo electrónico/contraseña*
+activado. El archivo `app/google-services.json` se incluye en el repositorio: no contiene secretos
+(Google indica que estas claves identifican el proyecto y pueden ser públicas) y es necesario para
+que el proyecto compile al clonarlo.
 
 ### 3.1 Modelo entidad-relación
 
@@ -170,8 +194,13 @@ Se combinan dos tecnologías según la naturaleza de cada dato:
   historial automáticamente; no pueden quedar cuidados huérfanos.
 - **Índices** en `plants.userId` (se filtra por usuario en cada consulta) y en
   `care_events.plantId` (se consulta el historial de una planta).
-- **`userId` desde el principio:** cada usuario verá solo sus plantas. Hasta la fase 5 vale
-  `"local"`; después será el uid de Firebase, sin necesidad de migrar la base de datos.
+- **`userId` desde el principio:** cada usuario solo ve sus plantas. Se incluyó en la fase 4 con el
+  valor provisional `"local"` y en la fase 5 pasó a ser el uid de Firebase **sin cambiar el
+  esquema** (no hizo falta una migración de Room). Las plantas `"local"` creadas antes del login se
+  asignan al primer usuario que inicia sesión (`PlantDao.reassignOwner`).
+- **Seguridad por usuario en el repositorio:** además de filtrar la lista, `PlantRepositoryImpl`
+  comprueba que la planta pertenece al usuario actual antes de mostrarla, editarla, borrarla o
+  registrar un cuidado.
 - **Fechas** (`LocalDate`) guardadas como número de días desde 1970 mediante un `TypeConverter`;
   los **enums** (`LightLevel`, `CareType`) se guardan por nombre, legibles en la base de datos.
 - **Campos opcionales** (`photoUri`, `fertilizeEveryDays`, fechas) son anulables: no todas las
@@ -185,6 +214,7 @@ Se combinan dos tecnologías según la naturaleza de cada dato:
 | `PlantDao` | `observePlants(userId)` | `SELECT * FROM plants WHERE userId = ? ORDER BY name COLLATE NOCASE` | Rejilla de inicio (`Flow`, se actualiza sola) |
 | `PlantDao` | `observePlant(id)` / `getPlant(id)` | `SELECT * FROM plants WHERE id = ?` | Detalle (`Flow`) y formulario de edición |
 | `PlantDao` | `insert` / `update` / `deleteById` | `@Insert`, `@Update`, `DELETE … WHERE id = ?` | Alta, edición y borrado |
+| `PlantDao` | `reassignOwner(from, to)` | `UPDATE plants SET userId = ? WHERE userId = ?` | Asignar las plantas previas al login |
 | `CareEventDao` | `observeEvents(plantId)` | `SELECT * FROM care_events WHERE plantId = ? ORDER BY date DESC, id DESC` | Historial del detalle |
 | `CareEventDao` | `insert` | `@Insert` | Registrar un cuidado |
 
@@ -203,8 +233,14 @@ Pruebas instrumentadas sobre una base de datos en memoria (`app/src/androidTest/
 | `savePlant_insertsThenUpdates` | El repositorio inserta las plantas nuevas y actualiza las existentes |
 | `registerWatering_updatesPlantAndHistory` | Regar añade el cuidado y actualiza la fecha del último riego |
 | `registerPruning_onlyAddsToHistory` | Podar solo añade el cuidado, sin tocar las fechas de riego |
+| `eachUser_onlySeesTheirOwnPlants` | Con dos usuarios, cada uno ve solo sus plantas y no puede abrir las del otro |
+| `plantsCreatedBeforeLogin_areClaimedByFirstUser` | Las plantas `"local"` pasan al usuario que inicia sesión |
+| `withoutSession_noPlantsAreVisible` | Tras cerrar sesión no se muestra ninguna planta |
 
-Resultado: **6/6 pruebas superadas** en el emulador.
+Las pruebas del repositorio usan un `FakeAuthRepository` en lugar de Firebase: gracias a la
+interfaz `AuthRepository` se puede cambiar de usuario a mano sin conexión.
+
+Resultado: **9/9 pruebas superadas** en el emulador.
 
 ## 4. División del trabajo
 
@@ -226,8 +262,9 @@ GitHub.
 | 3. Navegación | 29/09/2026 | 7 destinos type-safe, paso de parámetros, barra/rail adaptativo | `0c9051f` |
 | — Documentación | 29/09 y 07/10/2026 | Borrador de memoria, seguimiento de requisitos, justificación y rúbrica | `b590f0b`, `3151909`, `bfad30a` |
 | 4. Datos y MVVM | 07/10/2026 | Room, repositorio, Hilt, ViewModels con estado, rejilla de inicio, formulario y detalle con historial | `bf4257e` … `9c25285` (5 commits) |
-| 5. Autenticación | *(pendiente)* | Firebase Auth en login y registro, `AuthRepository` | |
-| 6. Perfil y ajustes | *(pendiente)* | Datos del usuario, preferencias, cierre de sesión real | |
+| — Entorno | 07/10/2026 | Solución al bloqueo SSL del antivirus | `5e5e2da` |
+| 5. Autenticación | 07/10/2026 | Firebase Auth, `AuthRepository`, login y registro reales, recuperación de contraseña, sesión persistente, plantas por usuario, perfil con cierre de sesión | `631178a` … `70009cc` (5 commits) |
+| 6. Perfil y ajustes | *(pendiente)* | Preferencias (recordatorios, tema), datos de la cuenta | |
 | 7. Funcionalidades avanzadas | *(pendiente)* | Sensor de luz, cámara, notificaciones, gráficos; permisos | |
 | 8. Adaptativo y pulido | *(pendiente)* | Lista-detalle en tablet, tema propio, accesibilidad | |
 
@@ -240,6 +277,21 @@ hacer su commit:
 3. **Inicio** (`51586f0`): `HomeViewModel` con `HomeUiState` y rejilla `LazyVerticalGrid`.
 4. **Formulario** (`13490e3`): `PlantEditViewModel` con eventos, validación y alta/edición.
 5. **Detalle** (`9c25285`): ficha, registro de cuidados, historial en `LazyColumn` y borrado.
+
+**Fase 5 en detalle.** Antes de programar, el autor creó el proyecto en la consola de Firebase,
+registró la app y activó el proveedor de correo y contraseña. Después:
+
+1. **Dependencias** (`631178a`): plugin `google-services`, Firebase BoM y `firebase-auth`.
+2. **Repositorio de autenticación** (`cd0b4e1`): `AuthRepository`, `FirebaseAuthRepository` y
+   `FirebaseModule`.
+3. **Login** (`a5f65fd`): `LoginViewModel`, validación con `AuthValidator` y componentes comunes.
+4. **Registro y recuperación** (`fb6a9f8`): `RegisterViewModel` y diálogo de restablecer contraseña.
+5. **Sesión y datos por usuario** (`70009cc`): `SessionViewModel`, plantas filtradas por uid,
+   perfil con cierre de sesión y pruebas con `FakeAuthRepository`.
+
+La validación de formularios se probó en el emulador mediante `adb`; el registro e inicio de
+sesión reales contra Firebase los probó el autor en el emulador (registro, sesión recordada al
+reabrir, cierre de sesión, contraseña incorrecta y nuevo inicio de sesión conservando sus plantas).
 
 ### 5.2 Historial de commits
 
@@ -261,6 +313,13 @@ que ha participado la IA incluyen la línea `Co-Authored-By: Claude` (ver aparta
 | `51586f0` | 07/10/2026 | feat: pantalla de inicio con rejilla de plantas y HomeViewModel | `HomeUiState` + `StateFlow`, `LazyVerticalGrid` adaptativa, estado vacío | ViewModel, estado, lista Lazy, MVVM, adaptativo |
 | `13490e3` | 07/10/2026 | feat: formulario para añadir y editar plantas | `PlantEditUiState` + `PlantEditEvent`, validación, `SavedStateHandle.toRoute()` | Estado, paso de parámetros, funcionamiento |
 | `9c25285` | 07/10/2026 | feat: detalle de planta con registro de cuidados y borrado | `combine` de planta e historial, `LazyColumn`, diálogo de borrado, Snackbar | Pantalla de detalle, lista Lazy, estado |
+| `964808c` | 07/10/2026 | docs: actualizar memoria con la fase 4 | Modelo E-R, consultas, pruebas, código relevante | Documentación |
+| `5e5e2da` | 07/10/2026 | docs: solución definitiva al bloqueo SSL de Gradle por el antivirus | Problema y solución documentados | Documentación |
+| `631178a` | 07/10/2026 | build: añadir Firebase Authentication | `google-services.json`, plugin, Firebase BoM, `firebase-auth` | Persistencia (Firebase) |
+| `cd0b4e1` | 07/10/2026 | feat: AuthRepository con Firebase y módulo de Hilt | Interfaz + implementación, `callbackFlow`, errores traducidos, `FirebaseModule` | Repository, inyección de dependencias |
+| `a5f65fd` | 07/10/2026 | feat: pantalla de login con validación y LoginViewModel | `LoginUiState`/`LoginEvent`, `AuthValidator` con 3 pruebas, campo de contraseña con mostrar/ocultar | Pantalla de login, estado |
+| `fb6a9f8` | 07/10/2026 | feat: pantalla de registro y recuperación de contraseña | `RegisterViewModel`, confirmación de contraseña, diálogo de recuperación | Pantalla de registro |
+| `70009cc` | 07/10/2026 | feat: sesión persistente y plantas asociadas al usuario | `SessionViewModel`, `flatMapLatest` por usuario, perfil, `FakeAuthRepository`, 3 pruebas | Funcionamiento, navegación coherente, persistencia |
 
 ### 5.3 Justificación de los requisitos técnicos obligatorios
 
@@ -275,10 +334,10 @@ Cada requisito del enunciado, cómo se ha implementado y dónde puede comprobars
 | 5 | Gestión correcta del estado | Flujo unidireccional de datos: cada ViewModel expone un `StateFlow` con un estado inmutable (`HomeUiState`, `PlantEditUiState`, `PlantDetailUiState`) que modela también la carga y los errores; la UI lo observa con `collectAsStateWithLifecycle` (deja de escuchar en segundo plano) y envía eventos (`PlantEditEvent`). El estado sobrevive a la rotación porque vive en el ViewModel; el estado puramente visual (diálogo de borrado) usa `rememberSaveable`. | `ui/home/HomeViewModel.kt`, `ui/edit/PlantEditViewModel.kt`, `ui/detail/PlantDetailViewModel.kt` | ✅ |
 | 6 | Lista LazyColumn / LazyRow / Grid | `LazyVerticalGrid` adaptativa con las plantas en Inicio y `LazyColumn` con la ficha y el historial en Detalle; ambas con `key` estable por id. | `ui/home/HomeScreen.kt`, `ui/detail/PlantDetailScreen.kt` | ✅ |
 | 7 | Arquitectura MVVM | UI → ViewModel → Repository → Room. Las pantallas no acceden a datos; los ViewModels no conocen Room (dependen de la interfaz del repositorio). | `ui/`, `data/repository/`, `data/local/` | ✅ |
-| 8 | Uso de ViewModel | `HomeViewModel`, `PlantEditViewModel` y `PlantDetailViewModel`, todos `@HiltViewModel`; leen el parámetro de navegación de su `SavedStateHandle`. | `ui/*/…ViewModel.kt` | ✅ |
-| 9 | Patrón Repository | Interfaz `PlantRepository` e implementación `PlantRepositoryImpl` sobre Room, con la lógica de negocio y transacciones. *(Fase 5: `AuthRepository`.)* | `data/repository/` | ✅ |
-| 10 | Persistencia Room y/o Firebase | Room con dos tablas relacionadas 1:N, consultas reactivas y esquema exportado (ver apartado 3). *(Fase 5: Firebase Auth.)* | `data/local/` | ✅ |
-| 11 | Inyección de dependencias | Hilt: `@HiltAndroidApp`, `@AndroidEntryPoint`, `@HiltViewModel`; `DatabaseModule` (`@Provides @Singleton`) crea la base de datos y `RepositoryModule` (`@Binds`) asocia interfaz e implementación. | `di/`, `PlantCareApp.kt` | ✅ |
+| 8 | Uso de ViewModel | Siete ViewModels `@HiltViewModel`: `Home`, `PlantEdit`, `PlantDetail`, `Login`, `Register`, `Settings` y `Session`; los de detalle y edición leen el parámetro de navegación de su `SavedStateHandle`. | `ui/*/…ViewModel.kt`, `navigation/SessionViewModel.kt` | ✅ |
+| 9 | Patrón Repository | Dos repositorios definidos como interfaz con su implementación: `PlantRepository` (Room, lógica de negocio y transacciones) y `AuthRepository` (Firebase). Se combinan: el de plantas pide al de autenticación el usuario actual. En las pruebas se sustituye Firebase por `FakeAuthRepository`. | `data/repository/`, `data/auth/` | ✅ |
+| 10 | Persistencia Room y/o Firebase | **Ambas**: Room con dos tablas relacionadas 1:N, consultas reactivas y esquema exportado; Firebase Authentication para las cuentas de usuario (ver apartado 3). | `data/local/`, `data/auth/` | ✅ |
+| 11 | Inyección de dependencias | Hilt: `@HiltAndroidApp`, `@AndroidEntryPoint`, `@HiltViewModel`; `DatabaseModule` y `FirebaseModule` (`@Provides @Singleton`) crean la base de datos y `FirebaseAuth`; `RepositoryModule` (`@Binds`) asocia cada interfaz con su implementación. | `di/`, `PlantCareApp.kt` | ✅ |
 | 12 | Gestión de permisos | *(fase 7)* `CAMERA` y `POST_NOTIFICATIONS` solicitados en tiempo de ejecución, con explicación y manejo de la denegación. | | ⬜ |
 | 13 | Interfaz adaptativa | `NavigationSuiteScaffold` (barra inferior / rail lateral), rejilla `GridCells.Adaptive`, anchos máximos en formulario y detalle; *(fase 8)* lista-detalle en tablet. | `navigation/PlantCareNavHost.kt`, `ui/home/HomeScreen.kt` | 🟡 |
 
@@ -341,8 +400,9 @@ fecha de la planta se actualizan juntos o no se actualiza ninguno:
 
 ```kotlin
 database.withTransaction {
+    val plant = plantDao.getPlant(plantId)?.takeIf { it.userId == requireUserId() }
+        ?: return@withTransaction
     careEventDao.insert(CareEventEntity(plantId = plantId, type = type, date = date))
-    val plant = plantDao.getPlant(plantId) ?: return@withTransaction
     when (type) {
         CareType.WATER -> plantDao.update(plant.copy(lastWatered = date))
         CareType.FERTILIZE -> plantDao.update(plant.copy(lastFertilized = date))
@@ -357,15 +417,48 @@ quien pida un `PlantRepository`; para las pruebas basta con cambiar la implement
 ```kotlin
 @Binds
 abstract fun bindPlantRepository(impl: PlantRepositoryImpl): PlantRepository
+
+@Binds
+abstract fun bindAuthRepository(impl: FirebaseAuthRepository): AuthRepository
+```
+
+**Firebase convertido en Flow** (`data/auth/FirebaseAuthRepository.kt`). Firebase avisa de los
+cambios de sesión con un *listener*; `callbackFlow` lo convierte en un `Flow` que el resto de la app
+observa igual que los datos de Room:
+
+```kotlin
+override val currentUser: Flow<User?> = callbackFlow {
+    val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser?.toUser()) }
+    auth.addAuthStateListener(listener)
+    awaitClose { auth.removeAuthStateListener(listener) }
+}.distinctUntilChanged()
+```
+
+**Plantas del usuario actual** (`data/repository/PlantRepositoryImpl.kt`). `flatMapLatest` cambia de
+consulta automáticamente cuando entra otro usuario o se cierra la sesión:
+
+```kotlin
+override fun observePlants(): Flow<List<Plant>> =
+    authRepository.currentUser.flatMapLatest { user ->
+        if (user == null) flowOf(emptyList())
+        else plantDao.observePlants(user.uid).map { list -> list.map { it.toModel() } }
+    }
+```
+
+**Destino inicial según la sesión** (`navigation/PlantCareNavHost.kt`):
+
+```kotlin
+val startDestination: Any = remember { if (currentUser != null) HomeRoute else LoginRoute }
 ```
 
 ### 5.7 Pruebas
 
 | Tipo | Ubicación | Pruebas | Resultado |
 |---|---|---|---|
-| Unitarias (JVM) | `app/src/test/.../model/PlantTest.kt` | Lógica de riego y abono (5) | ✅ 5/5 |
-| Instrumentadas | `app/src/androidTest/.../data/` | DAO y repositorio sobre Room en memoria (6) | ✅ 6/6 |
-| Manuales | Emulador Medium Phone (API 37) | Alta con validación, edición, rejilla ordenada, riego/abono/poda/trasplante, historial, borrado con confirmación, persistencia tras reiniciar | ✅ |
+| Unitarias (JVM) | `app/src/test/.../model/PlantTest.kt`, `.../ui/auth/AuthValidatorTest.kt` | Lógica de riego y abono (5); validación de email y contraseña (3) | ✅ 8/8 |
+| Instrumentadas | `app/src/androidTest/.../data/` | DAO (3) y repositorio con usuarios simulados (6) sobre Room en memoria | ✅ 9/9 |
+| Manuales (fase 4) | Emulador Medium Phone (API 37) | Alta con validación, edición, rejilla ordenada, riego/abono/poda/trasplante, historial, borrado con confirmación, persistencia tras reiniciar | ✅ |
+| Manuales (fase 5) | Emulador, cuenta real de Firebase | Validaciones de login y registro, registro real, sesión recordada al reabrir, cierre de sesión, contraseña incorrecta, nuevo inicio de sesión conservando las plantas | ✅ |
 
 ## 6. Problemas encontrados y soluciones
 
@@ -379,6 +472,9 @@ abstract fun bindPlantRepository(impl: PlantRepositoryImpl): PlantRepository
 | La función `hiltViewModel()` de `hilt-navigation-compose` está obsoleta | Usar la nueva librería `hilt-lifecycle-viewmodel-compose` |
 | Al pulsar el texto «Necesita abono» no se activaba el interruptor (solo respondía el `Switch`) | Hacer toda la fila pulsable con `Modifier.toggleable(role = Role.Switch)` |
 | El aviso «Poda registrado» tenía mal la concordancia de género | Cambiar el texto a «Cuidado registrado: Poda» |
+| Database Inspector mostraba «Nothing to show» | Room crea la base de datos la primera vez que se usa (al abrir «Mis plantas»), no al arrancar la app; además, el emulador tenía la pantalla apagada |
+| Las plantas de prueba desaparecieron del emulador | La tarea `connectedDebugAndroidTest` **desinstala la app** al terminar y con ella su base de datos. A partir de entonces las pruebas instrumentadas se lanzan con `installDebugAndroidTest` + `adb shell am instrument`, que conserva los datos |
+| Las plantas creadas antes de añadir el login tenían `userId = "local"` y no se verían con la cuenta nueva | El repositorio las asigna al primer usuario que inicia sesión (`reassignOwner`); cubierto por una prueba |
 
 *(Se amplía durante el desarrollo; ver `diario.md`.)*
 
@@ -414,7 +510,9 @@ en `docs/diario.md`, y los commits en los que ha participado incluyen la línea
 | Navegación | Generación del esqueleto de rutas y pantallas | Revisión del código y prueba de todos los flujos |
 | Documentación | Revisión punto por punto del enunciado y de la rúbrica; borrador de la memoria | Indicación de documentar y justificar todo según la rúbrica; revisión del texto |
 | Fase 4 (datos y MVVM) | Diseño de las tablas, generación del código de datos, ViewModels y pantallas, pruebas automáticas y pruebas en el emulador mediante `adb` | Aprobación del plan de la fase, decisión de hacer un commit probado por paso, revisión de las pantallas |
-| Problemas | Diagnóstico del error SSL de Gradle (antivirus) y de los fallos de usabilidad detectados al probar | — |
+| Problemas | Diagnóstico del error SSL de Gradle (antivirus) y de los fallos de usabilidad detectados al probar | Configuración de las exclusiones en Norton |
+| Fase 5 (Firebase) | Comparativa Firebase frente a usuarios en Room; generación de los repositorios, ViewModels, pantallas y pruebas; pruebas de validación en el emulador | Decisión de usar Firebase; creación del proyecto en la consola de Firebase; **prueba real de registro, inicio y cierre de sesión** (la IA no introduce credenciales en servicios externos) |
+| Vídeo | Guion del vídeo (`docs/guion-video.md`) actualizado en cada fase | Grabación y locución |
 
 **Valoración.** *(Pendiente, al final: qué ha aportado, qué limitaciones se han encontrado, qué
 ha habido que corregir y qué se ha aprendido.)*
@@ -437,3 +535,8 @@ evaluación, con el estado de cada uno.
 | 7. Documentación (1) | Calidad de la documentación | Todos los apartados del enunciado, justificación por requisito, capturas, diagramas y fragmentos de código | Esta memoria |
 | 8. GitHub (1) | Repositorio bien estructurado y evolución razonable mediante commits | Commits pequeños por fase con mensajes descriptivos; README; `docs/` | 5.2 · <https://github.com/gitJCRR/plantCare> |
 | 9. Vídeo (1) | Muestra todas las funcionalidades relevantes y explica la estructura del código | Guion: demo de cada pantalla y funcionalidad, luego recorrido por paquetes, capas y código destacado (≤ 15 min) | Enlace en la portada *(pendiente)* |
+
+## Anexo C. Guion del vídeo
+
+Ver [`guion-video.md`](guion-video.md): estructura de la demostración (≤ 15 min), qué enseñar de la
+app, qué archivos de código abrir y qué requisito demuestra cada parte.

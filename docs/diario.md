@@ -78,3 +78,44 @@ cancelación, y persistencia de los datos tras reiniciar la app.
   de cada paso, las pruebas automáticas y las pruebas en el emulador mediante `adb`.
 - Detectó durante las pruebas los dos fallos de usabilidad y los corrigió antes del commit.
 - Diagnosticó el problema del certificado SSL de Gradle.
+
+## 2026-10-07 — Fase 5: autenticación con Firebase
+
+Decisión: el enunciado admite Room y/o Firebase. Se compararon dos opciones para el login
+(Firebase Authentication o una tabla de usuarios en Room con contraseñas cifradas) y se eligió
+Firebase por ser la solución real, permitir recuperar la contraseña y demostrar el patrón
+Repository con dos fuentes de datos.
+
+Preparación (autor): proyecto `plantcare-cba07` en la consola de Firebase, app Android registrada,
+proveedor de correo/contraseña activado y `google-services.json` en `app/`.
+
+1. `631178a` Dependencias de Firebase (BoM 34.19.0, `firebase-auth`, plugin `google-services`).
+2. `cd0b4e1` `AuthRepository` + `FirebaseAuthRepository` (`callbackFlow`, errores traducidos) y
+   `FirebaseModule`.
+3. `a5f65fd` Login con `LoginViewModel`, `AuthValidator` (3 pruebas unitarias) y campo de
+   contraseña con mostrar/ocultar.
+4. `fb6a9f8` Registro con confirmación de contraseña y diálogo de recuperación.
+5. `70009cc` Sesión persistente (`SessionViewModel`), plantas filtradas por uid, migración de las
+   plantas `"local"`, perfil con email y cierre de sesión. 3 pruebas nuevas con
+   `FakeAuthRepository` (9/9 instrumentadas).
+
+Pruebas reales (autor): registro, el Ficus creado antes del login aparece en la cuenta nueva,
+email en Perfil, sesión recordada al reabrir, cerrar sesión, contraseña incorrecta y volver a
+entrar. Todo correcto.
+
+### Problemas encontrados
+
+- Database Inspector vacío: la base de datos se crea al usarla por primera vez y el emulador tenía
+  la pantalla apagada.
+- `connectedDebugAndroidTest` desinstala la app al terminar y borró las plantas de prueba. Desde
+  entonces las pruebas se lanzan con `adb shell am instrument`, que conserva los datos.
+- En el script de pruebas con `uiautomator`, los textos con «?» fallaban porque es un carácter
+  especial en las expresiones regulares (problema del script, no de la app).
+
+### Uso de la IA
+
+- Explicó la diferencia entre Firebase y Room para el login y la base de datos (dónde está el
+  archivo, cómo verla con Database Inspector).
+- Generó el código de la fase y lo probó en el emulador salvo el registro e inicio de sesión
+  reales, que hizo el autor (la IA no introduce credenciales en servicios externos).
+- Creó el guion del vídeo (`docs/guion-video.md`) a petición del autor.
