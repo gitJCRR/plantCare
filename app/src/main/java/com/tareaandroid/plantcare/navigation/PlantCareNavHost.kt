@@ -86,11 +86,11 @@ private fun PlantCareNavHost(navController: NavHostController, modifier: Modifie
                 onBack = { navController.popBackStack() },
             )
         }
-        composable<PlantEditRoute> { entry ->
-            val route = entry.toRoute<PlantEditRoute>()
+        composable<PlantEditRoute> {
+            // El ViewModel lee el plantId de la ruta a través de su SavedStateHandle
             PlantEditScreen(
-                plantId = route.plantId.takeIf { it != PlantEditRoute.NEW_PLANT },
                 onDone = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
             )
         }
         composable<LightMeterRoute> {

@@ -31,7 +31,28 @@
     <string name="detail_title">Planta #%1$d</string>
     <string name="detail_edit">Editar</string>
     <string name="edit_title_new">Nueva planta</string>
-    <string name="edit_title_edit">Editar planta #%1$d</string>
+    <string name="edit_title_edit">Editar planta</string>
+    <string name="edit_name">Nombre *</string>
+    <string name="edit_species">Especie</string>
+    <string name="edit_location">Ubicación</string>
+    <string name="edit_location_hint">Salón, terraza…</string>
+    <string name="edit_water_every">Regar cada</string>
+    <string name="edit_needs_fertilizer">Necesita abono</string>
+    <string name="edit_fertilize_every">Abonar cada</string>
+    <string name="edit_days_suffix">días</string>
+    <string name="edit_light">Luz que necesita</string>
+    <string name="edit_notes">Notas</string>
+    <string name="error_name_required">El nombre es obligatorio</string>
+    <string name="error_days_invalid">Introduce un número entre 1 y 365</string>
+
+    <!-- Valores del modelo -->
+    <string name="light_low">Baja</string>
+    <string name="light_medium">Media</string>
+    <string name="light_high">Alta</string>
+    <string name="care_water">Riego</string>
+    <string name="care_fertilize">Abono</string>
+    <string name="care_prune">Poda</string>
+    <string name="care_repot">Trasplante</string>
     <string name="light_title">Medidor de luz</string>
     <string name="settings_title">Perfil y ajustes</string>
     <string name="settings_logout">Cerrar sesión</string>
