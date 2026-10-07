@@ -34,3 +34,44 @@ Notas para la memoria final (problemas encontrados, soluciones y uso de la IA).
 - Claude consultó las versiones estables más recientes de cada librería, configuró Gradle
   y generó el esqueleto de navegación; se verificó compilando y recorriendo las pantallas
   en el emulador.
+
+## 2026-10-07 — Fase 4: base de datos y arquitectura MVVM
+
+Plan acordado: un commit por paso, cada uno probado en el emulador antes de subirlo.
+
+1. `bf4257e` Room: tablas `plants` y `care_events` (1:N, borrado en cascada), DAO con `Flow`,
+   conversor de fechas, esquema exportado. 3 pruebas instrumentadas de los DAO ✅.
+2. `8567c65` Modelo de dominio (`Plant` con la lógica de riego), `PlantRepository` +
+   implementación con transacción, módulos de Hilt. 5 pruebas unitarias + 3 del repositorio ✅.
+3. `51586f0` Inicio: `HomeViewModel` + `HomeUiState`, `LazyVerticalGrid` adaptativa, estado vacío.
+4. `13490e3` Formulario: `PlantEditViewModel` con eventos, validación y `SavedStateHandle.toRoute()`.
+5. `9c25285` Detalle: planta + historial combinados, registrar cuidados, `LazyColumn`, borrado.
+
+Pruebas manuales en el emulador (con `adb` y `uiautomator`): alta con validación de nombre
+vacío, edición (cambio de frecuencia de riego), rejilla reordenada por próximo riego, regar,
+abonar, podar y trasplantar con su aviso, historial ordenado, borrado con confirmación y
+cancelación, y persistencia de los datos tras reiniciar la app.
+
+### Problemas encontrados
+
+- **Gradle: `PKIX path building failed`** al descargar un componente de pruebas. Con
+  `openssl s_client -connect dl.google.com:443` se vio que el certificado lo emitía
+  «Norton Web/Mail Shield Root»: el antivirus intercepta HTTPS. Solución provisional:
+  compilar con `--offline` (las dependencias ya estaban descargadas) y lanzar las pruebas
+  con `adb shell am instrument`. Solución definitiva pendiente: excluir Android Studio / Java
+  del análisis SSL de Norton.
+- **`hiltViewModel()` obsoleto** en `hilt-navigation-compose`: se cambió a
+  `hilt-lifecycle-viewmodel-compose`.
+- **El texto «Necesita abono» no activaba el interruptor**: fila completa con
+  `Modifier.toggleable(role = Role.Switch)`.
+- **Concordancia en el aviso** («Poda registrado»): cambiado a «Cuidado registrado: Poda».
+- El emulador no incluye `sqlite3`, así que la rejilla se probó creando plantas desde el propio
+  formulario; los pasos 3 y 4 se programaron juntos y se separaron después en dos commits,
+  comprobando que el paso 3 compilaba por sí solo.
+
+### Uso de la IA
+
+- Claude explicó el plan de la fase 4 antes de empezar y, tras la aprobación, generó el código
+  de cada paso, las pruebas automáticas y las pruebas en el emulador mediante `adb`.
+- Detectó durante las pruebas los dos fallos de usabilidad y los corrigió antes del commit.
+- Diagnosticó el problema del certificado SSL de Gradle.

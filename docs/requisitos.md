@@ -11,8 +11,8 @@ móviles*). Se actualiza en cada fase del desarrollo.
 |---|---|---|
 | Pantalla de login | 🟡 | `ui/auth/LoginScreen.kt`: pantalla provisional; falta Firebase Auth |
 | Pantalla de registro si no estás logueado | 🟡 | `ui/auth/RegisterScreen.kt`: provisional |
-| Pantalla de inicio con elementos de la temática | 🟡 | `ui/home/HomeScreen.kt`: falta la rejilla de plantas desde Room |
-| Pantalla de detalle | 🟡 | `ui/detail/PlantDetailScreen.kt`: recibe `plantId` |
+| Pantalla de inicio con elementos de la temática | ✅ | `ui/home/HomeScreen.kt`: rejilla de plantas desde Room, aviso de riego, estado vacío |
+| Pantalla de detalle | ✅ | `ui/detail/PlantDetailScreen.kt`: ficha, cuidados, historial, editar y borrar |
 | Pantalla de perfil/ajustes | 🟡 | `ui/settings/SettingsScreen.kt`: solo cerrar sesión |
 | Pantalla de funcionalidades avanzadas | 🟡 | `ui/light/LightMeterScreen.kt` (sensor de luz); cámara en `ui/edit` |
 
@@ -24,15 +24,15 @@ móviles*). Se actualiza en cada fase del desarrollo.
 | Material 3 | ✅ | `material3` + `PlantCareTheme`; falta paleta propia |
 | Navigation Compose con ≥ 5 destinos | ✅ | 7 destinos en `navigation/Routes.kt` |
 | Paso de parámetros entre pantallas | ✅ | `PlantDetailRoute(plantId)`, `PlantEditRoute(plantId)` (type-safe) |
-| Gestión correcta del estado de la interfaz | ⬜ | Previsto: `UiState` + `StateFlow` + `collectAsStateWithLifecycle` |
-| Lista con LazyColumn / LazyRow / Grid | ⬜ | Previsto: `LazyVerticalGrid` en Inicio, `LazyColumn` en historial |
-| Arquitectura MVVM | ⬜ | Previsto: UI → ViewModel → Repository → Room/Firebase |
-| Uso de ViewModel | ⬜ | Previsto: un `@HiltViewModel` por pantalla |
-| Patrón Repository | ⬜ | Previsto: `PlantRepository`, `AuthRepository` |
-| Persistencia Room y/o Firebase | 🟡 | Dependencias añadidas; faltan entidades y DAO |
-| Inyección de dependencias | 🟡 | Hilt configurado (`@HiltAndroidApp`, `@AndroidEntryPoint`); faltan módulos |
+| Gestión correcta del estado de la interfaz | ✅ | `HomeUiState`, `PlantEditUiState`, `PlantDetailUiState` en `StateFlow` + `collectAsStateWithLifecycle`; eventos `PlantEditEvent` |
+| Lista con LazyColumn / LazyRow / Grid | ✅ | `LazyVerticalGrid` en Inicio, `LazyColumn` en Detalle |
+| Arquitectura MVVM | ✅ | UI → ViewModel → `PlantRepository` → Room |
+| Uso de ViewModel | ✅ | `HomeViewModel`, `PlantEditViewModel`, `PlantDetailViewModel` (`@HiltViewModel`) |
+| Patrón Repository | ✅ | `PlantRepository` + `PlantRepositoryImpl`; `AuthRepository` en la fase 5 |
+| Persistencia Room y/o Firebase | ✅ | Room: `plants` y `care_events` (1:N); Firebase Auth en la fase 5 |
+| Inyección de dependencias | ✅ | Hilt: `DatabaseModule`, `RepositoryModule`, `@HiltViewModel` |
 | Gestión de permisos Android | ⬜ | Previsto: `CAMERA`, `POST_NOTIFICATIONS` |
-| Interfaz adaptativa | 🟡 | `NavigationSuiteScaffold` (barra/rail); falta rejilla adaptativa y detalle en 2 paneles |
+| Interfaz adaptativa | 🟡 | Barra/rail, rejilla `GridCells.Adaptive`, anchos máximos; falta lista-detalle en tablet |
 
 ## 3. Funcionalidades avanzadas (mínimo 2)
 
@@ -49,7 +49,7 @@ móviles*). Se actualiza en cada fase del desarrollo.
 |---|---|
 | Introducción | 🟡 |
 | Diseño de la aplicación | 🟡 |
-| Base de datos empleada | ⬜ |
+| Base de datos empleada | ✅ (Room; falta Firebase) |
 | División del trabajo (individual, se indica) | ✅ |
 | Desarrollo de la aplicación | 🟡 |
 | Problemas encontrados y solución | 🟡 |
@@ -75,10 +75,10 @@ Borrador en [`memoria.md`](memoria.md); notas del día a día en [`diario.md`](d
 
 | Criterio | Puntos | Cómo se cubre | Estado |
 |---|---|---|---|
-| Funcionamiento y requisitos funcionales | 2 | Login, registro, inicio, detalle, perfil y pantallas propias sin errores | 🟡 |
-| Compose, navegación y estado | 1 | Componentes separados, navegación type-safe, `UiState` | 🟡 |
-| Arquitectura y organización | 1 | UI → ViewModel → Repository → fuente de datos, Hilt, paquetes por capa | 🟡 |
-| Base de datos | 1 | Room (`Plant`, `CareEvent`, relación 1:N) + Firebase Auth | ⬜ |
+| Funcionamiento y requisitos funcionales | 2 | Login, registro, inicio, detalle, perfil y pantallas propias sin errores | 🟡 inicio, detalle y formulario hechos |
+| Compose, navegación y estado | 1 | Componentes separados, navegación type-safe, `UiState` | ✅ |
+| Arquitectura y organización | 1 | UI → ViewModel → Repository → fuente de datos, Hilt, paquetes por capa | ✅ |
+| Base de datos | 1 | Room (`Plant`, `CareEvent`, relación 1:N) + Firebase Auth | ✅ Room · 🟡 Firebase |
 | Funcionalidades avanzadas | 1 | Sensor de luz, cámara, notificaciones (+ gráficos) | ⬜ |
 | Diseño adaptativo | 1 | `NavigationSuiteScaffold`, rejilla adaptativa, lista-detalle en tablet | 🟡 |
 | Documentación | 1 | `docs/memoria.md` → PDF | 🟡 |

@@ -38,9 +38,9 @@ problema real y permite aplicar la mayoría de los contenidos de la asignatura.
 |---|---|---|
 | Login | `LoginRoute` | Acceso con email y contraseña (destino inicial) |
 | Registro | `RegisterRoute` | Alta de usuario si no tiene cuenta |
-| Mis plantas (inicio) | `HomeRoute` | Rejilla con las plantas del usuario; destaca las que toca regar |
-| Detalle | `PlantDetailRoute(plantId)` | Datos de la planta, historial de cuidados, botón «Regada» |
-| Añadir / editar | `PlantEditRoute(plantId)` | Formulario con foto de la cámara; `plantId = -1` crea una nueva |
+| Mis plantas (inicio) | `HomeRoute` | Rejilla con las plantas del usuario, ordenadas por próximo riego; aviso «Toca regar» |
+| Detalle | `PlantDetailRoute(plantId)` | Ficha de la planta, botones Regar / Abonar / Podar / Trasplantar, historial de cuidados, editar y borrar |
+| Añadir / editar | `PlantEditRoute(plantId)` | Formulario validado (y foto de la cámara en la fase 7); `plantId = -1` crea una nueva |
 | Medidor de luz | `LightMeterRoute` | Lectura del sensor de luz ambiental en lux |
 | Perfil / ajustes | `SettingsRoute` | Datos del usuario, recordatorios, cerrar sesión |
 
@@ -67,51 +67,144 @@ Login ──► Registro
 
 Se sigue la arquitectura vista en clase: **UI → ViewModel → Repository → fuente de datos**.
 
-- **UI (Compose):** pantallas sin lógica de negocio; reciben un estado y emiten eventos.
-- **ViewModel:** expone un `StateFlow<UiState>` inmutable y recibe las acciones del usuario.
-- **Repository:** única puerta de acceso a los datos; oculta si vienen de Room o de Firebase.
-- **Fuentes de datos:** Room (plantas y cuidados) y Firebase Authentication (usuarios).
-- **Hilt** crea e inyecta todas las dependencias (base de datos, DAO, repositorios, ViewModels).
+```
+┌──────────────────┐  eventos (onEvent, clics)   ┌───────────────────┐
+│  Pantalla        │ ──────────────────────────► │  ViewModel        │
+│  (Compose)       │ ◄────────────────────────── │  @HiltViewModel   │
+└──────────────────┘  estado (StateFlow<UiState>)└─────────┬─────────┘
+                                                           │ suspend / Flow
+                                                 ┌─────────▼─────────┐
+                                                 │  PlantRepository  │ (interfaz)
+                                                 │  PlantRepositoryImpl
+                                                 └─────────┬─────────┘
+                                                           │
+                                                 ┌─────────▼─────────┐
+                                                 │ Room: PlantDao,   │
+                                                 │ CareEventDao      │
+                                                 └───────────────────┘
+                 Hilt crea e inyecta cada pieza (di/DatabaseModule, di/RepositoryModule)
+```
+
+- **UI (Compose):** cada pantalla tiene dos funciones. `XxxScreen` obtiene el ViewModel con
+  `hiltViewModel()` y observa su estado; `XxxContent` es *stateless*: solo recibe el estado y
+  emite eventos, por lo que puede previsualizarse con `@Preview` sin base de datos.
+- **ViewModel:** expone un `StateFlow<UiState>` inmutable y recibe las acciones del usuario. Los
+  parámetros de navegación los lee de su `SavedStateHandle`, no los recibe de la pantalla.
+- **Repository:** única puerta de acceso a los datos. Los ViewModels dependen de la interfaz
+  `PlantRepository`, no de Room; además contiene la lógica de negocio (registrar un cuidado
+  actualiza historial y fechas en una transacción).
+- **Modelo de dominio** (`model/`): `Plant` y `CareEvent` son independientes de Room. La lógica de
+  riego (próximo riego, días restantes, si toca regar) está en el modelo y tiene pruebas unitarias.
+- **Fuentes de datos:** Room (plantas y cuidados) y Firebase Authentication (usuarios, fase 5).
+- **Hilt** crea e inyecta todas las dependencias (base de datos, repositorios, ViewModels).
 
 Organización de paquetes:
 
 ```
 com.tareaandroid.plantcare
-├── PlantCareApp.kt        (@HiltAndroidApp)
-├── MainActivity.kt        (@AndroidEntryPoint)
-├── navigation/            rutas, NavHost y destinos principales
-├── ui/
-│   ├── auth/              login y registro
-│   ├── home/              lista de plantas
-│   ├── detail/            detalle
-│   ├── edit/              alta / edición
-│   ├── light/             medidor de luz
-│   ├── settings/          perfil y ajustes
-│   ├── components/        composables reutilizables
-│   └── theme/             Material 3
-├── data/                  (pendiente) entidades, DAO, base de datos, repositorios
-└── di/                    (pendiente) módulos de Hilt
+├── PlantCareApp.kt            @HiltAndroidApp
+├── MainActivity.kt            @AndroidEntryPoint
+├── model/                     modelo de dominio: Plant, CareEvent, LightLevel, CareType
+├── data/
+│   ├── local/                 PlantCareDatabase, Converters, Mappers (entidad <-> modelo)
+│   │   ├── entity/            PlantEntity, CareEventEntity (tablas)
+│   │   └── dao/               PlantDao, CareEventDao (consultas)
+│   └── repository/            PlantRepository (interfaz) y PlantRepositoryImpl
+├── di/                        DatabaseModule, RepositoryModule (Hilt)
+├── navigation/                Routes, TopLevelDestination, PlantCareNavHost
+└── ui/
+    ├── auth/                  login y registro
+    ├── home/                  HomeScreen, HomeViewModel, PlantCard
+    ├── detail/                PlantDetailScreen, PlantDetailViewModel
+    ├── edit/                  PlantEditScreen, PlantEditViewModel
+    ├── light/                 medidor de luz
+    ├── settings/              perfil y ajustes
+    ├── components/            componentes y textos reutilizables
+    └── theme/                 tema Material 3
 ```
 
 ### 2.3 Diseño adaptativo
 
 - `NavigationSuiteScaffold` de Material 3 Adaptive: **barra de navegación inferior** en móviles y
   **rail lateral** en pantallas anchas (tablets, plegables, horizontal).
-- *(Pendiente: rejilla con número de columnas adaptativo y vista lista-detalle en tablet.)*
+- **Rejilla de plantas adaptativa:** `LazyVerticalGrid` con `GridCells.Adaptive(160.dp)`; el
+  número de columnas depende del ancho disponible (2 en un móvil vertical, más en horizontal o
+  tablet) sin código específico por dispositivo.
+- **Ancho máximo de lectura:** el formulario (600 dp) y el detalle (720 dp) se centran en pantallas
+  anchas en lugar de estirarse.
+- *(Pendiente, fase 8: vista lista-detalle en tablet y pruebas en distintos tamaños.)*
 
 ## 3. Base de datos empleada
 
-*(Pendiente de implementar.)* Diseño previsto:
+Se combinan dos tecnologías según la naturaleza de cada dato:
 
-- **Firebase Authentication** para el registro e inicio de sesión de usuarios.
-- **Room** (SQLite) para los datos de la aplicación, con dos entidades:
-  - `Plant`: id, userId, nombre, especie, ubicación, foto, frecuencia de riego (días),
-    fecha del último riego, frecuencia de abono, notas.
-  - `CareEvent`: id, plantId, tipo (riego, abono, poda, trasplante), fecha, nota.
-  - Relación **1:N**: una planta tiene muchos cuidados (clave foránea con borrado en cascada).
-- El esquema se exporta automáticamente a `app/schemas/` para documentarlo y versionarlo.
+- **Room (SQLite local)** para las plantas y su historial: son datos del dispositivo que deben
+  estar disponibles sin conexión y consultarse de forma reactiva.
+- **Firebase Authentication** para los usuarios *(fase 5)*: gestiona registro, contraseñas y
+  sesión de forma segura sin guardar credenciales en el móvil.
 
-*(Pendiente: diagrama entidad-relación y consultas principales del DAO.)*
+### 3.1 Modelo entidad-relación
+
+```
+┌──────────────────────────────┐          ┌──────────────────────────────┐
+│ plants                       │          │ care_events                  │
+├──────────────────────────────┤          ├──────────────────────────────┤
+│ PK id            INTEGER     │ 1      N │ PK id            INTEGER     │
+│    userId        TEXT  (idx) │──────────│ FK plantId       INTEGER (idx)│
+│    name          TEXT        │          │    type          TEXT        │
+│    species       TEXT        │          │    date          INTEGER     │
+│    location      TEXT        │          │    note          TEXT        │
+│    photoUri      TEXT?       │          └──────────────────────────────┘
+│    waterEveryDays INTEGER    │           ON DELETE CASCADE
+│    lastWatered   INTEGER?    │
+│    fertilizeEveryDays INTEGER?│
+│    lastFertilized INTEGER?   │
+│    lightLevel    TEXT        │
+│    notes         TEXT        │
+└──────────────────────────────┘
+```
+
+**Decisiones de diseño:**
+
+- **Relación 1:N con clave foránea y `ON DELETE CASCADE`:** al borrar una planta se borra su
+  historial automáticamente; no pueden quedar cuidados huérfanos.
+- **Índices** en `plants.userId` (se filtra por usuario en cada consulta) y en
+  `care_events.plantId` (se consulta el historial de una planta).
+- **`userId` desde el principio:** cada usuario verá solo sus plantas. Hasta la fase 5 vale
+  `"local"`; después será el uid de Firebase, sin necesidad de migrar la base de datos.
+- **Fechas** (`LocalDate`) guardadas como número de días desde 1970 mediante un `TypeConverter`;
+  los **enums** (`LightLevel`, `CareType`) se guardan por nombre, legibles en la base de datos.
+- **Campos opcionales** (`photoUri`, `fertilizeEveryDays`, fechas) son anulables: no todas las
+  plantas tienen foto ni necesitan abono.
+- El **esquema se exporta** a `app/schemas/.../1.json` para documentarlo y preparar migraciones.
+
+### 3.2 Consultas (DAO)
+
+| DAO | Método | Consulta | Uso |
+|---|---|---|---|
+| `PlantDao` | `observePlants(userId)` | `SELECT * FROM plants WHERE userId = ? ORDER BY name COLLATE NOCASE` | Rejilla de inicio (`Flow`, se actualiza sola) |
+| `PlantDao` | `observePlant(id)` / `getPlant(id)` | `SELECT * FROM plants WHERE id = ?` | Detalle (`Flow`) y formulario de edición |
+| `PlantDao` | `insert` / `update` / `deleteById` | `@Insert`, `@Update`, `DELETE … WHERE id = ?` | Alta, edición y borrado |
+| `CareEventDao` | `observeEvents(plantId)` | `SELECT * FROM care_events WHERE plantId = ? ORDER BY date DESC, id DESC` | Historial del detalle |
+| `CareEventDao` | `insert` | `@Insert` | Registrar un cuidado |
+
+Registrar un riego o un abono modifica dos tablas (nuevo `care_event` y fecha de la planta), por
+lo que el repositorio lo hace dentro de una **transacción** (`database.withTransaction`).
+
+### 3.3 Pruebas de la base de datos
+
+Pruebas instrumentadas sobre una base de datos en memoria (`app/src/androidTest/.../data/`):
+
+| Prueba | Qué comprueba |
+|---|---|
+| `insertAndReadPlant_keepsDatesAndEnums` | Las fechas y enums se guardan y recuperan correctamente |
+| `observePlants_filtersByUserAndSortsByName` | Solo se ven las plantas del usuario, ordenadas sin distinguir mayúsculas |
+| `deletingPlant_cascadesToCareEvents` | El borrado en cascada elimina el historial |
+| `savePlant_insertsThenUpdates` | El repositorio inserta las plantas nuevas y actualiza las existentes |
+| `registerWatering_updatesPlantAndHistory` | Regar añade el cuidado y actualiza la fecha del último riego |
+| `registerPruning_onlyAddsToHistory` | Podar solo añade el cuidado, sin tocar las fechas de riego |
+
+Resultado: **6/6 pruebas superadas** en el emulador.
 
 ## 4. División del trabajo
 
@@ -131,12 +224,22 @@ GitHub.
 | 1. Proyecto base | 29/09/2026 | Plantilla Compose (minSdk 26), README, repositorio | `00e7b41` |
 | 2. Dependencias | 29/09/2026 | Hilt, Room, Navigation, KSP, Serialization | `c27c7c0` |
 | 3. Navegación | 29/09/2026 | 7 destinos type-safe, paso de parámetros, barra/rail adaptativo | `0c9051f` |
-| — Documentación | 29/09/2026 | Borrador de memoria y seguimiento de requisitos | `b590f0b` |
-| 4. Base de datos | *(pendiente)* | Entidades, DAO, repositorio, ViewModel, rejilla de plantas | |
-| 5. Autenticación | *(pendiente)* | Firebase Auth en login y registro | |
-| 6. Detalle y edición | *(pendiente)* | Formulario, historial de cuidados | |
-| 7. Funcionalidades avanzadas | *(pendiente)* | Sensor de luz, cámara, notificaciones | |
-| 8. Adaptativo y pulido | *(pendiente)* | Lista-detalle, tema, accesibilidad | |
+| — Documentación | 29/09 y 07/10/2026 | Borrador de memoria, seguimiento de requisitos, justificación y rúbrica | `b590f0b`, `3151909`, `bfad30a` |
+| 4. Datos y MVVM | 07/10/2026 | Room, repositorio, Hilt, ViewModels con estado, rejilla de inicio, formulario y detalle con historial | `bf4257e` … `9c25285` (5 commits) |
+| 5. Autenticación | *(pendiente)* | Firebase Auth en login y registro, `AuthRepository` | |
+| 6. Perfil y ajustes | *(pendiente)* | Datos del usuario, preferencias, cierre de sesión real | |
+| 7. Funcionalidades avanzadas | *(pendiente)* | Sensor de luz, cámara, notificaciones, gráficos; permisos | |
+| 8. Adaptativo y pulido | *(pendiente)* | Lista-detalle en tablet, tema propio, accesibilidad | |
+
+**Fase 4 en detalle.** Se dividió en pasos pequeños, cada uno probado en el emulador antes de
+hacer su commit:
+
+1. **Base de datos Room** (`bf4257e`): entidades, DAO, base de datos y pruebas de los DAO.
+2. **Repositorio y Hilt** (`8567c65`): modelo de dominio con la lógica de riego, repositorio,
+   módulos de Hilt y pruebas unitarias e instrumentadas.
+3. **Inicio** (`51586f0`): `HomeViewModel` con `HomeUiState` y rejilla `LazyVerticalGrid`.
+4. **Formulario** (`13490e3`): `PlantEditViewModel` con eventos, validación y alta/edición.
+5. **Detalle** (`9c25285`): ficha, registro de cuidados, historial en `LazyColumn` y borrado.
 
 ### 5.2 Historial de commits
 
@@ -151,6 +254,13 @@ que ha participado la IA incluyen la línea `Co-Authored-By: Claude` (ver aparta
 | `c27c7c0` | 29/09/2026 | build: añadir Hilt, Room, Navigation Compose y KSP | Catálogo de versiones, plugins, `PlantCareApp` con `@HiltAndroidApp` | Inyección de dependencias (base), Room (base) |
 | `0c9051f` | 29/09/2026 | feat: navegación type-safe con 7 pantallas provisionales | Rutas `@Serializable`, `NavHost`, `NavigationSuiteScaffold`, textos en `strings.xml` | Navigation (≥5 destinos), paso de parámetros, adaptativo (base) |
 | `b590f0b` | 29/09/2026 | docs: borrador de memoria y seguimiento de requisitos | `docs/memoria.md`, `docs/requisitos.md` | Documentación |
+| `3151909` | 07/10/2026 | docs: justificación de requisitos e historial de commits en la memoria | Apartados 5.2, 5.3, 5.4 y Anexo B | Documentación, GitHub |
+| `bfad30a` | 07/10/2026 | docs: detallar en la memoria qué evalúa cada criterio de la rúbrica | Anexo B ampliado | Documentación |
+| `bf4257e` | 07/10/2026 | feat: base de datos Room con entidades Plant y CareEvent | Tablas, relación 1:N, DAO con `Flow`, `TypeConverter`, esquema exportado, 3 pruebas | Persistencia (Room) |
+| `8567c65` | 07/10/2026 | feat: PlantRepository y módulos de Hilt | Modelo de dominio, repositorio con transacción, `DatabaseModule`, `RepositoryModule`, 8 pruebas | Repository, inyección de dependencias |
+| `51586f0` | 07/10/2026 | feat: pantalla de inicio con rejilla de plantas y HomeViewModel | `HomeUiState` + `StateFlow`, `LazyVerticalGrid` adaptativa, estado vacío | ViewModel, estado, lista Lazy, MVVM, adaptativo |
+| `13490e3` | 07/10/2026 | feat: formulario para añadir y editar plantas | `PlantEditUiState` + `PlantEditEvent`, validación, `SavedStateHandle.toRoute()` | Estado, paso de parámetros, funcionamiento |
+| `9c25285` | 07/10/2026 | feat: detalle de planta con registro de cuidados y borrado | `combine` de planta e historial, `LazyColumn`, diálogo de borrado, Snackbar | Pantalla de detalle, lista Lazy, estado |
 
 ### 5.3 Justificación de los requisitos técnicos obligatorios
 
@@ -162,15 +272,15 @@ Cada requisito del enunciado, cómo se ha implementado y dónde puede comprobars
 | 2 | Material 3 | Tema `PlantCareTheme` (M3) y componentes M3: `Button`, `NavigationSuiteScaffold`… | `ui/theme/`, `ui/**` | ✅ |
 | 3 | Navigation Compose, ≥ 5 destinos | 7 destinos declarados como clases `@Serializable` en un `NavHost`. | `navigation/Routes.kt`, `navigation/PlantCareNavHost.kt` | ✅ |
 | 4 | Paso de parámetros entre pantallas | `PlantDetailRoute(plantId)` y `PlantEditRoute(plantId)`; se recuperan con `toRoute<>()`, con tipo comprobado en compilación. | `navigation/` | ✅ |
-| 5 | Gestión correcta del estado | *(fase 4)* Cada ViewModel expone un `StateFlow<UiState>` inmutable; la UI lo observa con `collectAsStateWithLifecycle` (flujo unidireccional de datos). | | ⬜ |
-| 6 | Lista LazyColumn / LazyRow / Grid | *(fase 4)* `LazyVerticalGrid` de plantas en Inicio; *(fase 6)* `LazyColumn` con el historial de cuidados. | | ⬜ |
-| 7 | Arquitectura MVVM | *(fase 4)* UI → ViewModel → Repository → Room / Firebase. | | ⬜ |
-| 8 | Uso de ViewModel | *(fase 4)* Un `@HiltViewModel` por pantalla con lógica. | | ⬜ |
-| 9 | Patrón Repository | *(fases 4-5)* `PlantRepository` y `AuthRepository` como interfaces con su implementación. | | ⬜ |
-| 10 | Persistencia Room y/o Firebase | Room para plantas y cuidados (datos locales, sin conexión); Firebase Auth para usuarios. *(fases 4-5)* | | 🟡 |
-| 11 | Inyección de dependencias | Hilt: `@HiltAndroidApp`, `@AndroidEntryPoint`; *(fase 4)* módulos en `di/`. | `PlantCareApp.kt`, `MainActivity.kt` | 🟡 |
+| 5 | Gestión correcta del estado | Flujo unidireccional de datos: cada ViewModel expone un `StateFlow` con un estado inmutable (`HomeUiState`, `PlantEditUiState`, `PlantDetailUiState`) que modela también la carga y los errores; la UI lo observa con `collectAsStateWithLifecycle` (deja de escuchar en segundo plano) y envía eventos (`PlantEditEvent`). El estado sobrevive a la rotación porque vive en el ViewModel; el estado puramente visual (diálogo de borrado) usa `rememberSaveable`. | `ui/home/HomeViewModel.kt`, `ui/edit/PlantEditViewModel.kt`, `ui/detail/PlantDetailViewModel.kt` | ✅ |
+| 6 | Lista LazyColumn / LazyRow / Grid | `LazyVerticalGrid` adaptativa con las plantas en Inicio y `LazyColumn` con la ficha y el historial en Detalle; ambas con `key` estable por id. | `ui/home/HomeScreen.kt`, `ui/detail/PlantDetailScreen.kt` | ✅ |
+| 7 | Arquitectura MVVM | UI → ViewModel → Repository → Room. Las pantallas no acceden a datos; los ViewModels no conocen Room (dependen de la interfaz del repositorio). | `ui/`, `data/repository/`, `data/local/` | ✅ |
+| 8 | Uso de ViewModel | `HomeViewModel`, `PlantEditViewModel` y `PlantDetailViewModel`, todos `@HiltViewModel`; leen el parámetro de navegación de su `SavedStateHandle`. | `ui/*/…ViewModel.kt` | ✅ |
+| 9 | Patrón Repository | Interfaz `PlantRepository` e implementación `PlantRepositoryImpl` sobre Room, con la lógica de negocio y transacciones. *(Fase 5: `AuthRepository`.)* | `data/repository/` | ✅ |
+| 10 | Persistencia Room y/o Firebase | Room con dos tablas relacionadas 1:N, consultas reactivas y esquema exportado (ver apartado 3). *(Fase 5: Firebase Auth.)* | `data/local/` | ✅ |
+| 11 | Inyección de dependencias | Hilt: `@HiltAndroidApp`, `@AndroidEntryPoint`, `@HiltViewModel`; `DatabaseModule` (`@Provides @Singleton`) crea la base de datos y `RepositoryModule` (`@Binds`) asocia interfaz e implementación. | `di/`, `PlantCareApp.kt` | ✅ |
 | 12 | Gestión de permisos | *(fase 7)* `CAMERA` y `POST_NOTIFICATIONS` solicitados en tiempo de ejecución, con explicación y manejo de la denegación. | | ⬜ |
-| 13 | Interfaz adaptativa | `NavigationSuiteScaffold`: barra inferior en móvil y rail lateral en pantalla ancha; *(fase 8)* rejilla adaptativa y lista-detalle. | `navigation/PlantCareNavHost.kt` | 🟡 |
+| 13 | Interfaz adaptativa | `NavigationSuiteScaffold` (barra inferior / rail lateral), rejilla `GridCells.Adaptive`, anchos máximos en formulario y detalle; *(fase 8)* lista-detalle en tablet. | `navigation/PlantCareNavHost.kt`, `ui/home/HomeScreen.kt` | 🟡 |
 
 ### 5.4 Funcionalidades avanzadas (mínimo 2)
 
@@ -195,7 +305,67 @@ Cada requisito del enunciado, cómo se ha implementado y dónde puede comprobars
 
 ### 5.6 Código más relevante
 
-*(Pendiente: explicación del código más relevante de cada fase, con fragmentos.)*
+**ViewModel con estado reactivo** (`ui/home/HomeViewModel.kt`). El estado se deriva del `Flow` de
+Room: cuando se guarda o se riega una planta en otra pantalla, la rejilla se actualiza sola.
+
+```kotlin
+val uiState: StateFlow<HomeUiState> = repository.observePlants()
+    .map { plants ->
+        val today = LocalDate.now()
+        HomeUiState.Success(plants.sortedBy { it.daysUntilWatering(today) }, today)
+    }
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState.Loading)
+```
+
+**Pantalla separada en dos funciones** (`ui/home/HomeScreen.kt`). `HomeScreen` conecta con el
+ViewModel; `HomeContent` solo pinta, lo que permite previsualizarla y probarla aislada.
+
+```kotlin
+@Composable
+fun HomeScreen(onPlantClick: (Long) -> Unit, onAddPlant: () -> Unit,
+               viewModel: HomeViewModel = hiltViewModel()) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    HomeContent(uiState, onPlantClick, onAddPlant)
+}
+```
+
+**Parámetro de navegación leído en el ViewModel** (`ui/detail/PlantDetailViewModel.kt`). El
+`plantId` llega por la ruta type-safe y se recupera con tipo comprobado:
+
+```kotlin
+private val plantId = savedStateHandle.toRoute<PlantDetailRoute>().plantId
+```
+
+**Transacción en el repositorio** (`data/repository/PlantRepositoryImpl.kt`). El historial y la
+fecha de la planta se actualizan juntos o no se actualiza ninguno:
+
+```kotlin
+database.withTransaction {
+    careEventDao.insert(CareEventEntity(plantId = plantId, type = type, date = date))
+    val plant = plantDao.getPlant(plantId) ?: return@withTransaction
+    when (type) {
+        CareType.WATER -> plantDao.update(plant.copy(lastWatered = date))
+        CareType.FERTILIZE -> plantDao.update(plant.copy(lastFertilized = date))
+        CareType.PRUNE, CareType.REPOT -> Unit
+    }
+}
+```
+
+**Inyección de dependencias** (`di/RepositoryModule.kt`). Hilt entrega `PlantRepositoryImpl` a
+quien pida un `PlantRepository`; para las pruebas basta con cambiar la implementación.
+
+```kotlin
+@Binds
+abstract fun bindPlantRepository(impl: PlantRepositoryImpl): PlantRepository
+```
+
+### 5.7 Pruebas
+
+| Tipo | Ubicación | Pruebas | Resultado |
+|---|---|---|---|
+| Unitarias (JVM) | `app/src/test/.../model/PlantTest.kt` | Lógica de riego y abono (5) | ✅ 5/5 |
+| Instrumentadas | `app/src/androidTest/.../data/` | DAO y repositorio sobre Room en memoria (6) | ✅ 6/6 |
+| Manuales | Emulador Medium Phone (API 37) | Alta con validación, edición, rejilla ordenada, riego/abono/poda/trasplante, historial, borrado con confirmación, persistencia tras reiniciar | ✅ |
 
 ## 6. Problemas encontrados y soluciones
 
@@ -204,6 +374,11 @@ Cada requisito del enunciado, cómo se ha implementado y dónde puede comprobars
 | El emulador mostraba la pantalla en negro dentro de Android Studio aunque la app estaba en ejecución | Era un retraso al refrescar el panel del emulador; se comprobó con `adb` que la app estaba en primer plano |
 | `git push` fallaba con *SSL peer certificate or SSH remote key was not OK* | Configurar git para usar los certificados de Windows: `git config http.sslBackend schannel` |
 | GitHub rechazaba la autenticación por contraseña | Iniciar sesión mediante el navegador desde Android Studio (Git Credential Manager guarda la credencial) |
+| Tras editar los archivos de Gradle fuera de Android Studio, el botón ▶️ desaparecía | Sincronizar el proyecto: *File → Sync Project with Gradle Files* |
+| Gradle no podía descargar dependencias nuevas: *PKIX path building failed* | El antivirus (Norton Web/Mail Shield) intercepta las conexiones HTTPS con su propio certificado, en el que Java no confía. Se comprobó el emisor del certificado con `openssl s_client`. Mientras tanto se compiló en modo `--offline` con las dependencias ya descargadas y las pruebas se lanzaron con `adb shell am instrument` |
+| La función `hiltViewModel()` de `hilt-navigation-compose` está obsoleta | Usar la nueva librería `hilt-lifecycle-viewmodel-compose` |
+| Al pulsar el texto «Necesita abono» no se activaba el interruptor (solo respondía el `Switch`) | Hacer toda la fila pulsable con `Modifier.toggleable(role = Role.Switch)` |
+| El aviso «Poda registrado» tenía mal la concordancia de género | Cambiar el texto a «Cuidado registrado: Poda» |
 
 *(Se amplía durante el desarrollo; ver `diario.md`.)*
 
@@ -237,6 +412,9 @@ en `docs/diario.md`, y los commits en los que ha participado incluyen la línea
 | Git / GitHub | Inicialización del repositorio, `.gitignore`, diagnóstico del error SSL | Creación del repositorio en GitHub e inicio de sesión |
 | Dependencias | Consulta de las últimas versiones estables y configuración de Gradle | Compilación y ejecución en el emulador |
 | Navegación | Generación del esqueleto de rutas y pantallas | Revisión del código y prueba de todos los flujos |
+| Documentación | Revisión punto por punto del enunciado y de la rúbrica; borrador de la memoria | Indicación de documentar y justificar todo según la rúbrica; revisión del texto |
+| Fase 4 (datos y MVVM) | Diseño de las tablas, generación del código de datos, ViewModels y pantallas, pruebas automáticas y pruebas en el emulador mediante `adb` | Aprobación del plan de la fase, decisión de hacer un commit probado por paso, revisión de las pantallas |
+| Problemas | Diagnóstico del error SSL de Gradle (antivirus) y de los fallos de usabilidad detectados al probar | — |
 
 **Valoración.** *(Pendiente, al final: qué ha aportado, qué limitaciones se han encontrado, qué
 ha habido que corregir y qué se ha aprendido.)*
@@ -250,7 +428,7 @@ evaluación, con el estado de cada uno.
 
 | Criterio (puntos) | Qué se evalúa (enunciado) | Cómo lo cubre PlantCare | Dónde se justifica |
 |---|---|---|---|
-| 1. Funcionamiento y requisitos funcionales (2) | Login, registro, inicio, detalle, perfil/ajustes y pantallas de la temática; navegación coherente; operaciones principales completas y sin errores importantes | Las 7 pantallas; alta, edición, borrado y registro de cuidados de plantas; login/registro reales con Firebase; pila de navegación limpia tras login/logout | 2.1 · capturas *(pendiente)* · vídeo |
+| 1. Funcionamiento y requisitos funcionales (2) | Login, registro, inicio, detalle, perfil/ajustes y pantallas de la temática; navegación coherente; operaciones principales completas y sin errores importantes | Las 7 pantallas; alta, edición, borrado y registro de cuidados de plantas; login/registro reales con Firebase; pila de navegación limpia tras login/logout | 2.1 · 5.7 Pruebas · capturas *(pendiente)* · vídeo |
 | 2. Compose, navegación y estado (1) | Uso correcto de Compose, navegación y estado; componentes bien separados | Una carpeta por pantalla; composables *stateless* que reciben estado y eventos; rutas type-safe; `UiState` + `StateFlow` | 5.3, requisitos 1-6 |
 | 3. Arquitectura y organización (1) | UI → ViewModel → Repository → fuente de datos; inyección de dependencias; organización de paquetes | Capas separadas en `ui/`, `data/`, `di/`, `navigation/`; Hilt inyecta base de datos, DAO, repositorios y ViewModels | 2.2 · 5.3, requisitos 7-9 y 11 |
 | 4. Base de datos (1) | Uso de Firebase o Room | Room con `Plant` y `CareEvent` (1:N, clave foránea, esquema exportado) + Firebase Auth | 3 · 5.3, requisito 10 |
