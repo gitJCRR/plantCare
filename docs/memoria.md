@@ -123,19 +123,65 @@ documentación y vídeo son obra del autor.
 El desarrollo se ha hecho de forma incremental; cada fase corresponde a uno o varios commits en
 GitHub.
 
+### 5.1 Fases del desarrollo
+
 | Fase | Fecha | Contenido | Commits |
 |---|---|---|---|
 | 0. Planificación | 29/09/2026 | Análisis del enunciado, elección de temática y stack | — |
 | 1. Proyecto base | 29/09/2026 | Plantilla Compose (minSdk 26), README, repositorio | `00e7b41` |
 | 2. Dependencias | 29/09/2026 | Hilt, Room, Navigation, KSP, Serialization | `c27c7c0` |
 | 3. Navegación | 29/09/2026 | 7 destinos type-safe, paso de parámetros, barra/rail adaptativo | `0c9051f` |
+| — Documentación | 29/09/2026 | Borrador de memoria y seguimiento de requisitos | `b590f0b` |
 | 4. Base de datos | *(pendiente)* | Entidades, DAO, repositorio, ViewModel, rejilla de plantas | |
 | 5. Autenticación | *(pendiente)* | Firebase Auth en login y registro | |
 | 6. Detalle y edición | *(pendiente)* | Formulario, historial de cuidados | |
 | 7. Funcionalidades avanzadas | *(pendiente)* | Sensor de luz, cámara, notificaciones | |
 | 8. Adaptativo y pulido | *(pendiente)* | Lista-detalle, tema, accesibilidad | |
 
-### Tecnologías y versiones
+### 5.2 Historial de commits
+
+Se usan mensajes en español con prefijos convencionales (`feat` nueva funcionalidad, `fix`
+corrección, `build` dependencias/Gradle, `docs` documentación, `refactor`, `chore` tareas
+generales) para que la evolución del proyecto se lea directamente en GitHub. Los commits en los
+que ha participado la IA incluyen la línea `Co-Authored-By: Claude` (ver apartado 9).
+
+| Commit | Fecha | Mensaje | Qué aporta | Requisitos que cubre |
+|---|---|---|---|---|
+| `00e7b41` | 29/09/2026 | chore: proyecto inicial con Jetpack Compose | Plantilla *Empty Activity*, README, `.gitignore`, diario | Compose, Material 3 |
+| `c27c7c0` | 29/09/2026 | build: añadir Hilt, Room, Navigation Compose y KSP | Catálogo de versiones, plugins, `PlantCareApp` con `@HiltAndroidApp` | Inyección de dependencias (base), Room (base) |
+| `0c9051f` | 29/09/2026 | feat: navegación type-safe con 7 pantallas provisionales | Rutas `@Serializable`, `NavHost`, `NavigationSuiteScaffold`, textos en `strings.xml` | Navigation (≥5 destinos), paso de parámetros, adaptativo (base) |
+| `b590f0b` | 29/09/2026 | docs: borrador de memoria y seguimiento de requisitos | `docs/memoria.md`, `docs/requisitos.md` | Documentación |
+
+### 5.3 Justificación de los requisitos técnicos obligatorios
+
+Cada requisito del enunciado, cómo se ha implementado y dónde puede comprobarse en el código.
+
+| # | Requisito del enunciado | Implementación y justificación | Dónde | Estado |
+|---|---|---|---|---|
+| 1 | Jetpack Compose para la interfaz | Toda la UI se declara con funciones `@Composable`; no hay layouts XML. | `ui/**` | ✅ |
+| 2 | Material 3 | Tema `PlantCareTheme` (M3) y componentes M3: `Button`, `NavigationSuiteScaffold`… | `ui/theme/`, `ui/**` | ✅ |
+| 3 | Navigation Compose, ≥ 5 destinos | 7 destinos declarados como clases `@Serializable` en un `NavHost`. | `navigation/Routes.kt`, `navigation/PlantCareNavHost.kt` | ✅ |
+| 4 | Paso de parámetros entre pantallas | `PlantDetailRoute(plantId)` y `PlantEditRoute(plantId)`; se recuperan con `toRoute<>()`, con tipo comprobado en compilación. | `navigation/` | ✅ |
+| 5 | Gestión correcta del estado | *(fase 4)* Cada ViewModel expone un `StateFlow<UiState>` inmutable; la UI lo observa con `collectAsStateWithLifecycle` (flujo unidireccional de datos). | | ⬜ |
+| 6 | Lista LazyColumn / LazyRow / Grid | *(fase 4)* `LazyVerticalGrid` de plantas en Inicio; *(fase 6)* `LazyColumn` con el historial de cuidados. | | ⬜ |
+| 7 | Arquitectura MVVM | *(fase 4)* UI → ViewModel → Repository → Room / Firebase. | | ⬜ |
+| 8 | Uso de ViewModel | *(fase 4)* Un `@HiltViewModel` por pantalla con lógica. | | ⬜ |
+| 9 | Patrón Repository | *(fases 4-5)* `PlantRepository` y `AuthRepository` como interfaces con su implementación. | | ⬜ |
+| 10 | Persistencia Room y/o Firebase | Room para plantas y cuidados (datos locales, sin conexión); Firebase Auth para usuarios. *(fases 4-5)* | | 🟡 |
+| 11 | Inyección de dependencias | Hilt: `@HiltAndroidApp`, `@AndroidEntryPoint`; *(fase 4)* módulos en `di/`. | `PlantCareApp.kt`, `MainActivity.kt` | 🟡 |
+| 12 | Gestión de permisos | *(fase 7)* `CAMERA` y `POST_NOTIFICATIONS` solicitados en tiempo de ejecución, con explicación y manejo de la denegación. | | ⬜ |
+| 13 | Interfaz adaptativa | `NavigationSuiteScaffold`: barra inferior en móvil y rail lateral en pantalla ancha; *(fase 8)* rejilla adaptativa y lista-detalle. | `navigation/PlantCareNavHost.kt` | 🟡 |
+
+### 5.4 Funcionalidades avanzadas (mínimo 2)
+
+| Funcionalidad | Uso en la app | Dónde | Estado |
+|---|---|---|---|
+| Sensor de luz | Mide los lux de un lugar y los compara con la luz que necesita la planta | `ui/light/` | ⬜ |
+| Cámara | Foto de cada planta | `ui/edit/` | ⬜ |
+| Notificaciones | Recordatorios de riego (WorkManager) | *(pendiente)* | ⬜ |
+| Gráficos (extra) | Historial de cuidados por mes | *(pendiente)* | ⬜ |
+
+### 5.5 Tecnologías y versiones
 
 | Tecnología | Versión |
 |---|---|
@@ -147,7 +193,9 @@ GitHub.
 | Room | 2.8.5 |
 | minSdk / targetSdk | 26 / 37 |
 
-*(Pendiente: explicación del código más relevante de cada fase.)*
+### 5.6 Código más relevante
+
+*(Pendiente: explicación del código más relevante de cada fase, con fragmentos.)*
 
 ## 6. Problemas encontrados y soluciones
 
@@ -197,3 +245,17 @@ ha habido que corregir y qué se ha aprendido.)*
 
 Ver [`requisitos.md`](requisitos.md): revisión punto por punto del enunciado y de los criterios de
 evaluación, con el estado de cada uno.
+
+## Anexo B. Correspondencia con los criterios de evaluación
+
+| Criterio (puntos) | Dónde se justifica en esta memoria |
+|---|---|
+| 1. Funcionamiento y requisitos funcionales (2) | 2.1 Pantallas y navegación · capturas *(pendiente)* · vídeo |
+| 2. Jetpack Compose, navegación y estado (1) | 5.3, requisitos 1-6 |
+| 3. Arquitectura y organización (1) | 2.2 Arquitectura · 5.3, requisitos 7-9 y 11 |
+| 4. Diseño e implementación de la base de datos (1) | 3. Base de datos empleada · 5.3, requisito 10 |
+| 5. Funcionalidades avanzadas (1) | 5.4 |
+| 6. Diseño adaptativo (1) | 2.3 · 5.3, requisito 13 |
+| 7. Documentación (1) | Esta memoria (todos los apartados del enunciado) |
+| 8. GitHub (1) | 5.2 Historial de commits · <https://github.com/gitJCRR/plantCare> |
+| 9. Vídeo (1) | Enlace en la portada *(pendiente)* |
