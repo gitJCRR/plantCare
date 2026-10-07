@@ -58,8 +58,11 @@ cancelación, y persistencia de los datos tras reiniciar la app.
   `openssl s_client -connect dl.google.com:443` se vio que el certificado lo emitía
   «Norton Web/Mail Shield Root»: el antivirus intercepta HTTPS. Solución provisional:
   compilar con `--offline` (las dependencias ya estaban descargadas) y lanzar las pruebas
-  con `adb shell am instrument`. Solución definitiva pendiente: excluir Android Studio / Java
-  del análisis SSL de Norton.
+  con `adb shell am instrument`. **Solución definitiva:** en Norton, *Protección contra estafas → Web segura →
+  Exclusiones*, añadir uno por entrada `dl.google.com`, `maven.google.com`,
+  `repo.maven.apache.org`, `repo1.maven.org`, `plugins.gradle.org`, `services.gradle.org` y
+  `firebase.google.com`. (Primero se pusieron todos en una sola línea y no funcionó.)
+  Comprobado con `openssl` y ejecutando `connectedDebugAndroidTest` desde Gradle.
 - **`hiltViewModel()` obsoleto** en `hilt-navigation-compose`: se cambió a
   `hilt-lifecycle-viewmodel-compose`.
 - **El texto «Necesita abono» no activaba el interruptor**: fila completa con
