@@ -1,5 +1,7 @@
 package com.tareaandroid.plantcare.di
 
+import com.tareaandroid.plantcare.data.auth.AuthRepository
+import com.tareaandroid.plantcare.data.auth.FirebaseAuthRepository
 import com.tareaandroid.plantcare.data.repository.PlantRepository
 import com.tareaandroid.plantcare.data.repository.PlantRepositoryImpl
 import dagger.Binds
@@ -14,4 +16,7 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindPlantRepository(impl: PlantRepositoryImpl): PlantRepository
+
+    @Binds
+    abstract fun bindAuthRepository(impl: FirebaseAuthRepository): AuthRepository
 }
