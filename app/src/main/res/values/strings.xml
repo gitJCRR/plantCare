@@ -21,6 +21,13 @@
     <!-- Pantallas -->
     <string name="home_title">Mis plantas</string>
     <string name="home_add_plant">Añadir planta</string>
+    <string name="home_empty_title">Todavía no tienes plantas</string>
+    <string name="home_empty_message">Añade tu primera planta y PlantCare te recordará cuándo regarla.</string>
+    <string name="watering_due">Toca regar</string>
+    <plurals name="watering_in_days">
+        <item quantity="one">Regar mañana</item>
+        <item quantity="other">Regar en %1$d días</item>
+    </plurals>
     <string name="detail_title">Planta #%1$d</string>
     <string name="detail_edit">Editar</string>
     <string name="edit_title_new">Nueva planta</string>
