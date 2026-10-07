@@ -4,13 +4,17 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.tareaandroid.plantcare.data.local.PlantCareDatabase
+import com.tareaandroid.plantcare.data.local.toEntity
 import com.tareaandroid.plantcare.data.repository.PlantRepositoryImpl
 import com.tareaandroid.plantcare.model.CareType
 import com.tareaandroid.plantcare.model.Plant
+import com.tareaandroid.plantcare.model.User
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,7 +24,11 @@ import java.time.LocalDate
 @RunWith(AndroidJUnit4::class)
 class PlantRepositoryTest {
 
+    private val ana = User(uid = "uid-ana", email = "ana@ejemplo.com")
+    private val juan = User(uid = "uid-juan", email = "juan@ejemplo.com")
+
     private lateinit var db: PlantCareDatabase
+    private lateinit var auth: FakeAuthRepository
     private lateinit var repository: PlantRepositoryImpl
 
     @Before
@@ -29,11 +37,43 @@ class PlantRepositoryTest {
             ApplicationProvider.getApplicationContext(),
             PlantCareDatabase::class.java,
         ).build()
-        repository = PlantRepositoryImpl(db)
+        auth = FakeAuthRepository(ana)
+        repository = PlantRepositoryImpl(db, auth)
     }
 
     @After
     fun tearDown() = db.close()
+
+    @Test
+    fun eachUser_onlySeesTheirOwnPlants() = runBlocking {
+        val anaPlantId = repository.savePlant(Plant(name = "Monstera", waterEveryDays = 7))
+
+        auth.switchTo(juan)
+        repository.savePlant(Plant(name = "Cactus", waterEveryDays = 14))
+
+        assertEquals(listOf("Cactus"), repository.observePlants().first().map { it.name })
+        assertNull(repository.getPlant(anaPlantId))
+
+        auth.switchTo(ana)
+        assertEquals(listOf("Monstera"), repository.observePlants().first().map { it.name })
+    }
+
+    @Test
+    fun plantsCreatedBeforeLogin_areClaimedByFirstUser() = runBlocking {
+        db.plantDao().insert(Plant(name = "Ficus", waterEveryDays = 5).toEntity(userId = "local"))
+
+        val plants = repository.observePlants().first()
+
+        assertEquals(listOf("Ficus"), plants.map { it.name })
+    }
+
+    @Test
+    fun withoutSession_noPlantsAreVisible() = runBlocking {
+        repository.savePlant(Plant(name = "Pothos", waterEveryDays = 3))
+        auth.signOut()
+
+        assertTrue(repository.observePlants().first().isEmpty())
+    }
 
     @Test
     fun savePlant_insertsThenUpdates() = runBlocking {

@@ -4,9 +4,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -30,7 +34,24 @@ import com.tareaandroid.plantcare.ui.settings.SettingsScreen
  * en pantallas anchas (diseño adaptativo).
  */
 @Composable
-fun PlantCareApp(navController: NavHostController = rememberNavController()) {
+fun PlantCareApp(
+    navController: NavHostController = rememberNavController(),
+    sessionViewModel: SessionViewModel = hiltViewModel(),
+) {
+    val currentUser by sessionViewModel.currentUser.collectAsStateWithLifecycle()
+
+    // El destino inicial se decide una sola vez, al crear el grafo de navegación
+    val startDestination: Any = remember { if (currentUser != null) HomeRoute else LoginRoute }
+
+    // Si la sesión se cierra (p. ej. desde Perfil), se vuelve al login sin poder volver atrás
+    LaunchedEffect(currentUser) {
+        val destination = navController.currentDestination
+        val inAuthScreen = destination?.hasRoute(LoginRoute::class) == true || destination?.hasRoute(RegisterRoute::class) == true
+        if (currentUser == null && destination != null && !inAuthScreen) {
+            navController.navigateClearingBackStack(LoginRoute)
+        }
+    }
+
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
     val showNavigation = TopLevelDestination.entries.any {
@@ -50,16 +71,20 @@ fun PlantCareApp(navController: NavHostController = rememberNavController()) {
                 }
             },
         ) {
-            PlantCareNavHost(navController)
+            PlantCareNavHost(navController, startDestination)
         }
     } else {
-        PlantCareNavHost(navController)
+        PlantCareNavHost(navController, startDestination)
     }
 }
 
 @Composable
-private fun PlantCareNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
-    NavHost(navController = navController, startDestination = LoginRoute, modifier = modifier) {
+private fun PlantCareNavHost(
+    navController: NavHostController,
+    startDestination: Any,
+    modifier: Modifier = Modifier,
+) {
+    NavHost(navController = navController, startDestination = startDestination, modifier = modifier) {
         composable<LoginRoute> {
             LoginScreen(
                 onLoginSuccess = { navController.navigateClearingBackStack(HomeRoute) },
@@ -96,9 +121,8 @@ private fun PlantCareNavHost(navController: NavHostController, modifier: Modifie
             LightMeterScreen()
         }
         composable<SettingsRoute> {
-            SettingsScreen(
-                onLogout = { navController.navigateClearingBackStack(LoginRoute) },
-            )
+            // Al cerrar sesión, PlantCareApp detecta el cambio de usuario y vuelve al login
+            SettingsScreen()
         }
     }
 }

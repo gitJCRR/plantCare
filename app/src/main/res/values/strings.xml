@@ -93,4 +93,7 @@
     <string name="light_title">Medidor de luz</string>
     <string name="settings_title">Perfil y ajustes</string>
     <string name="settings_logout">Cerrar sesión</string>
+    <string name="settings_account">Cuenta</string>
+    <string name="settings_logout_title">¿Cerrar sesión?</string>
+    <string name="settings_logout_message">Tus plantas seguirán guardadas y las verás al volver a entrar con esta cuenta.</string>
 </resources>

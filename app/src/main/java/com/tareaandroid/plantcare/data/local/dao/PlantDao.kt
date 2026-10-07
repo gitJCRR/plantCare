@@ -29,4 +29,8 @@ interface PlantDao {
 
     @Query("DELETE FROM plants WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    /** Cambia el propietario de todas las plantas de [fromUserId] a [toUserId]. */
+    @Query("UPDATE plants SET userId = :toUserId WHERE userId = :fromUserId")
+    suspend fun reassignOwner(fromUserId: String, toUserId: String)
 }
