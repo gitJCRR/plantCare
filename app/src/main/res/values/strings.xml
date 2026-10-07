@@ -91,6 +91,17 @@
     <string name="care_prune">Poda</string>
     <string name="care_repot">Trasplante</string>
     <string name="light_title">Medidor de luz</string>
+    <string name="light_no_sensor">Este dispositivo no tiene sensor de luz.</string>
+    <string name="light_hint">Coloca el móvil donde estaría la planta, con la pantalla hacia arriba, y espera unos segundos.</string>
+    <string name="light_waiting">Midiendo…</string>
+    <string name="light_lux_value">%1$d lux</string>
+    <string name="light_level_too_dark">Muy poca luz para cualquier planta</string>
+    <string name="light_level_measured">Luz %1$s</string>
+    <string name="light_plants_title">¿Qué tal estarían aquí tus plantas?</string>
+    <string name="light_plant_needs">Necesita luz %1$s</string>
+    <string name="light_fit_good">Bien aquí</string>
+    <string name="light_fit_more">Más luz</string>
+    <string name="light_fit_less">Menos luz</string>
     <string name="settings_title">Perfil y ajustes</string>
     <string name="settings_logout">Cerrar sesión</string>
     <string name="settings_account">Cuenta</string>

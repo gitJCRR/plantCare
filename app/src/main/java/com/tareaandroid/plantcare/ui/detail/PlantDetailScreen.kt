@@ -252,7 +252,7 @@ private fun PlantDetailBody(state: PlantDetailUiState.Success, onCare: (CareType
                 }
                 InfoRow(
                     icon = Icons.Outlined.WbSunny,
-                    title = stringResource(R.string.detail_light, stringResource(plant.lightLevel.labelRes)),
+                    title = stringResource(R.string.detail_light, stringResource(plant.lightLevel.labelRes).lowercase()),
                     subtitle = stringResource(R.string.detail_light_range, plant.lightLevel.minLux, plant.lightLevel.maxLux),
                 )
                 if (plant.location.isNotBlank()) {
