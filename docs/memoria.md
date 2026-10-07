@@ -248,14 +248,14 @@ evaluación, con el estado de cada uno.
 
 ## Anexo B. Correspondencia con los criterios de evaluación
 
-| Criterio (puntos) | Dónde se justifica en esta memoria |
-|---|---|
-| 1. Funcionamiento y requisitos funcionales (2) | 2.1 Pantallas y navegación · capturas *(pendiente)* · vídeo |
-| 2. Jetpack Compose, navegación y estado (1) | 5.3, requisitos 1-6 |
-| 3. Arquitectura y organización (1) | 2.2 Arquitectura · 5.3, requisitos 7-9 y 11 |
-| 4. Diseño e implementación de la base de datos (1) | 3. Base de datos empleada · 5.3, requisito 10 |
-| 5. Funcionalidades avanzadas (1) | 5.4 |
-| 6. Diseño adaptativo (1) | 2.3 · 5.3, requisito 13 |
-| 7. Documentación (1) | Esta memoria (todos los apartados del enunciado) |
-| 8. GitHub (1) | 5.2 Historial de commits · <https://github.com/gitJCRR/plantCare> |
-| 9. Vídeo (1) | Enlace en la portada *(pendiente)* |
+| Criterio (puntos) | Qué se evalúa (enunciado) | Cómo lo cubre PlantCare | Dónde se justifica |
+|---|---|---|---|
+| 1. Funcionamiento y requisitos funcionales (2) | Login, registro, inicio, detalle, perfil/ajustes y pantallas de la temática; navegación coherente; operaciones principales completas y sin errores importantes | Las 7 pantallas; alta, edición, borrado y registro de cuidados de plantas; login/registro reales con Firebase; pila de navegación limpia tras login/logout | 2.1 · capturas *(pendiente)* · vídeo |
+| 2. Compose, navegación y estado (1) | Uso correcto de Compose, navegación y estado; componentes bien separados | Una carpeta por pantalla; composables *stateless* que reciben estado y eventos; rutas type-safe; `UiState` + `StateFlow` | 5.3, requisitos 1-6 |
+| 3. Arquitectura y organización (1) | UI → ViewModel → Repository → fuente de datos; inyección de dependencias; organización de paquetes | Capas separadas en `ui/`, `data/`, `di/`, `navigation/`; Hilt inyecta base de datos, DAO, repositorios y ViewModels | 2.2 · 5.3, requisitos 7-9 y 11 |
+| 4. Base de datos (1) | Uso de Firebase o Room | Room con `Plant` y `CareEvent` (1:N, clave foránea, esquema exportado) + Firebase Auth | 3 · 5.3, requisito 10 |
+| 5. Funcionalidades avanzadas (1) | Al menos dos: cámara, sensores, QR, mapas, notificaciones, audio, vídeo, gráficos… | Sensor de luz, cámara, notificaciones y gráficos (cuatro, el doble del mínimo) | 5.4 |
+| 6. Diseño adaptativo (1) | Diseño adaptativo para distintos dispositivos | Barra/rail de navegación, rejilla con columnas según el ancho, lista-detalle en tablet | 2.3 · 5.3, requisito 13 |
+| 7. Documentación (1) | Calidad de la documentación | Todos los apartados del enunciado, justificación por requisito, capturas, diagramas y fragmentos de código | Esta memoria |
+| 8. GitHub (1) | Repositorio bien estructurado y evolución razonable mediante commits | Commits pequeños por fase con mensajes descriptivos; README; `docs/` | 5.2 · <https://github.com/gitJCRR/plantCare> |
+| 9. Vídeo (1) | Muestra todas las funcionalidades relevantes y explica la estructura del código | Guion: demo de cada pantalla y funcionalidad, luego recorrido por paquetes, capas y código destacado (≤ 15 min) | Enlace en la portada *(pendiente)* |
