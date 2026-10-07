@@ -7,6 +7,8 @@ import androidx.navigation.toRoute
 import com.tareaandroid.plantcare.data.repository.PlantRepository
 import com.tareaandroid.plantcare.model.CareEvent
 import com.tareaandroid.plantcare.model.CareType
+import com.tareaandroid.plantcare.model.MonthlyCare
+import com.tareaandroid.plantcare.model.monthlyCareStats
 import com.tareaandroid.plantcare.model.Plant
 import com.tareaandroid.plantcare.navigation.PlantDetailRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +29,8 @@ sealed interface PlantDetailUiState {
         val plant: Plant,
         val history: List<CareEvent>,
         val today: LocalDate,
+        /** Cuidados por mes de los últimos 6 meses, para el gráfico. */
+        val monthlyStats: List<MonthlyCare> = emptyList(),
     ) : PlantDetailUiState
 }
 
@@ -46,7 +50,8 @@ class PlantDetailViewModel @Inject constructor(
         if (plant == null) {
             PlantDetailUiState.NotFound
         } else {
-            PlantDetailUiState.Success(plant, history, LocalDate.now())
+            val today = LocalDate.now()
+            PlantDetailUiState.Success(plant, history, today, monthlyCareStats(history, today))
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlantDetailUiState.Loading)
 

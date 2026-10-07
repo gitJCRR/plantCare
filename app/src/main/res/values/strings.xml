@@ -66,6 +66,9 @@
     <string name="detail_light">Luz %1$s</string>
     <string name="detail_light_range">Entre %1$d y %2$d lux</string>
     <string name="detail_history">Historial de cuidados</string>
+    <string name="chart_title">Cuidados de los últimos meses</string>
+    <string name="chart_other_cares">Otros cuidados</string>
+    <string name="chart_description">Gráfico de los últimos %1$d meses: %2$d riegos y %3$d otros cuidados</string>
     <string name="detail_history_empty">Todavía no has registrado ningún cuidado.</string>
     <string name="edit_title_new">Nueva planta</string>
     <string name="edit_title_edit">Editar planta</string>

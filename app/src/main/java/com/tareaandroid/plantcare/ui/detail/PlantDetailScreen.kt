@@ -260,6 +260,9 @@ private fun PlantDetailBody(state: PlantDetailUiState.Success, onCare: (CareType
                 }
             }
         }
+        if (state.history.isNotEmpty()) {
+            item { CareChart(state.monthlyStats, Modifier.padding(top = 8.dp)) }
+        }
         item {
             Text(
                 stringResource(R.string.detail_history),
