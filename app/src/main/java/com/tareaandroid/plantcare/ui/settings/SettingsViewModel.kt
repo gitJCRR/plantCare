@@ -3,6 +3,7 @@ package com.tareaandroid.plantcare.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tareaandroid.plantcare.data.auth.AuthRepository
+import com.tareaandroid.plantcare.notifications.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +16,7 @@ data class SettingsUiState(val email: String? = null)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val reminderScheduler: ReminderScheduler,
 ) : ViewModel() {
 
     val uiState: StateFlow<SettingsUiState> = authRepository.currentUser
@@ -26,4 +28,7 @@ class SettingsViewModel @Inject constructor(
         )
 
     fun signOut() = authRepository.signOut()
+
+    /** Ejecuta ya la comprobación de riego para ver la notificación sin esperar al día siguiente. */
+    fun testReminder() = reminderScheduler.runNow()
 }

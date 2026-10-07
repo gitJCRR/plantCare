@@ -10,6 +10,9 @@
     <!-- Permiso peligroso: se pide en tiempo de ejecución antes de abrir la cámara -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- Android 13+: permiso en tiempo de ejecución para mostrar los recordatorios de riego -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".PlantCareApp"
         android:allowBackup="true"
@@ -42,6 +45,17 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- WorkManager se inicializa desde PlantCareApp (Configuration.Provider) para usar Hilt -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
         </provider>
     </application>
 

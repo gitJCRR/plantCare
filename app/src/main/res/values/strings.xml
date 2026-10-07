@@ -113,6 +113,20 @@
     <string name="light_fit_less">Menos luz</string>
     <string name="settings_title">Perfil y ajustes</string>
     <string name="settings_logout">Cerrar sesión</string>
+    <string name="notification_channel_name">Recordatorios de riego</string>
+    <string name="notification_channel_description">Aviso diario con las plantas que toca regar</string>
+    <string name="notifications_banner_title">Activa los recordatorios</string>
+    <string name="notifications_banner_text">Te avisaremos cada día de las plantas que toca regar.</string>
+    <string name="notifications_banner_enable">Activar</string>
+    <string name="notifications_banner_dismiss">Ahora no</string>
+    <string name="notifications_permission_denied">Has denegado las notificaciones. Puedes activarlas en los ajustes de la app.</string>
+    <string name="settings_test_reminder">Probar recordatorio ahora</string>
+    <string name="settings_reminders">Recordatorios</string>
+    <string name="settings_reminders_summary">Aviso diario a las 9:00 con las plantas que toca regar</string>
+    <plurals name="notification_title">
+        <item quantity="one">Hoy toca regar %1$d planta</item>
+        <item quantity="other">Hoy toca regar %1$d plantas</item>
+    </plurals>
     <string name="settings_account">Cuenta</string>
     <string name="settings_logout_title">¿Cerrar sesión?</string>
     <string name="settings_logout_message">Tus plantas seguirán guardadas y las verás al volver a entrar con esta cuenta.</string>

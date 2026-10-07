@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,12 +41,12 @@ import com.tareaandroid.plantcare.ui.theme.PlantCareTheme
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    SettingsContent(uiState = uiState, onSignOut = viewModel::signOut)
+    SettingsContent(uiState = uiState, onSignOut = viewModel::signOut, onTestReminder = viewModel::testReminder)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsContent(uiState: SettingsUiState, onSignOut: () -> Unit) {
+fun SettingsContent(uiState: SettingsUiState, onSignOut: () -> Unit, onTestReminder: () -> Unit) {
     var showSignOutDialog by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
@@ -77,6 +78,18 @@ fun SettingsContent(uiState: SettingsUiState, onSignOut: () -> Unit) {
                         headlineContent = { Text(uiState.email.orEmpty()) },
                     )
                 }
+                Card(Modifier.fillMaxWidth()) {
+                    ListItem(
+                        leadingContent = {
+                            Icon(Icons.Outlined.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        },
+                        headlineContent = { Text(stringResource(R.string.settings_reminders)) },
+                        supportingContent = { Text(stringResource(R.string.settings_reminders_summary)) },
+                    )
+                    TextButton(onClick = onTestReminder, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)) {
+                        Text(stringResource(R.string.settings_test_reminder))
+                    }
+                }
                 OutlinedButton(onClick = { showSignOutDialog = true }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
                     Text(stringResource(R.string.settings_logout), modifier = Modifier.padding(start = 8.dp))
@@ -107,6 +120,6 @@ fun SettingsContent(uiState: SettingsUiState, onSignOut: () -> Unit) {
 @Composable
 private fun SettingsPreview() {
     PlantCareTheme {
-        SettingsContent(uiState = SettingsUiState(email = "ana@ejemplo.com"), onSignOut = {})
+        SettingsContent(uiState = SettingsUiState(email = "ana@ejemplo.com"), onSignOut = {}, onTestReminder = {})
     }
 }

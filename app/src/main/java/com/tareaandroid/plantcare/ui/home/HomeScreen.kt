@@ -46,16 +46,25 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    HomeContent(uiState = uiState, onPlantClick = onPlantClick, onAddPlant = onAddPlant)
+    HomeContent(
+        uiState = uiState,
+        onPlantClick = onPlantClick,
+        onAddPlant = onAddPlant,
+        banner = { NotificationPermissionBanner(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) },
+    )
 }
 
-/** Contenido sin estado propio: solo pinta [uiState] y emite eventos. */
+/**
+ * Contenido sin estado propio: solo pinta [uiState] y emite eventos.
+ * [banner] se muestra encima de la lista (aviso para activar las notificaciones).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeContent(
     uiState: HomeUiState,
     onPlantClick: (Long) -> Unit,
     onAddPlant: () -> Unit,
+    banner: @Composable () -> Unit = {},
 ) {
     Scaffold(
         topBar = { TopAppBar(title = { Text(stringResource(R.string.home_title)) }) },
@@ -67,19 +76,22 @@ fun HomeContent(
             )
         },
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            when (uiState) {
-                HomeUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                is HomeUiState.Success ->
-                    if (uiState.plants.isEmpty()) {
-                        EmptyPlants(Modifier.align(Alignment.Center))
-                    } else {
-                        PlantGrid(uiState.plants, uiState.today, onPlantClick)
-                    }
+            banner()
+            Box(Modifier.fillMaxSize()) {
+                when (uiState) {
+                    HomeUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    is HomeUiState.Success ->
+                        if (uiState.plants.isEmpty()) {
+                            EmptyPlants(Modifier.align(Alignment.Center))
+                        } else {
+                            PlantGrid(uiState.plants, uiState.today, onPlantClick)
+                        }
+                }
             }
         }
     }
