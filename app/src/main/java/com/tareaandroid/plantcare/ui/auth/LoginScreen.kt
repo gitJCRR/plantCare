@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -21,10 +22,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -53,6 +58,19 @@ fun LoginContent(
     onEvent: (LoginEvent) -> Unit,
     onGoToRegister: () -> Unit,
 ) {
+    var showResetDialog by rememberSaveable { mutableStateOf(false) }
+
+    if (showResetDialog) {
+        PasswordResetDialog(
+            initialEmail = uiState.email,
+            onSend = { email ->
+                showResetDialog = false
+                onEvent(LoginEvent.SendPasswordReset(email))
+            },
+            onDismiss = { showResetDialog = false },
+        )
+    }
+
     Surface(Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -87,11 +105,27 @@ fun LoginContent(
                     onImeAction = { onEvent(LoginEvent.Submit) },
                 )
 
+                TextButton(
+                    onClick = { showResetDialog = true },
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier.align(Alignment.End),
+                ) {
+                    Text(stringResource(R.string.login_forgot_password))
+                }
+
                 uiState.generalError?.let {
                     Text(
                         stringResource(it),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                uiState.infoMessage?.let {
+                    Text(
+                        stringResource(it),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
                     )
                 }
 
@@ -112,6 +146,28 @@ fun LoginContent(
             }
         }
     }
+}
+
+/** Diálogo que pide el correo al que enviar el enlace para restablecer la contraseña. */
+@Composable
+private fun PasswordResetDialog(initialEmail: String, onSend: (String) -> Unit, onDismiss: () -> Unit) {
+    var email by rememberSaveable { mutableStateOf(initialEmail) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.reset_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.reset_message))
+                EmailField(value = email, onValueChange = { email = it }, error = null, enabled = true)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSend(email) }) { Text(stringResource(R.string.reset_action)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
 }
 
 @Preview(showBackground = true)

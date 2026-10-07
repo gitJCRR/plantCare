@@ -29,8 +29,16 @@
     <string name="auth_error_too_many_requests">Demasiados intentos. Espera unos minutos</string>
     <string name="auth_error_unknown">Ha ocurrido un error. Inténtalo de nuevo</string>
     <string name="register_title">Crear cuenta</string>
-    <string name="register_action">Registrarme</string>
+    <string name="register_subtitle">Crea tu cuenta para guardar tus plantas</string>
+    <string name="register_action">Crear cuenta</string>
     <string name="register_go_login">Ya tengo cuenta</string>
+    <string name="auth_confirm_password">Repite la contraseña</string>
+    <string name="auth_error_passwords_mismatch">Las contraseñas no coinciden</string>
+    <string name="login_forgot_password">¿Has olvidado tu contraseña?</string>
+    <string name="reset_title">Recuperar contraseña</string>
+    <string name="reset_message">Te enviaremos un correo con un enlace para crear una contraseña nueva.</string>
+    <string name="reset_action">Enviar</string>
+    <string name="reset_sent">Si existe una cuenta con ese correo, recibirás un email para restablecer la contraseña.</string>
 
     <!-- Pantallas -->
     <string name="home_title">Mis plantas</string>

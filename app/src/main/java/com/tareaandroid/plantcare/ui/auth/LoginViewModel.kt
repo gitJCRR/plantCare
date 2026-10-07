@@ -23,12 +23,15 @@ data class LoginUiState(
     @StringRes val generalError: Int? = null,
     val isLoading: Boolean = false,
     val loggedIn: Boolean = false,
+    /** Mensaje informativo, p. ej. tras enviar el correo de recuperación. */
+    @StringRes val infoMessage: Int? = null,
 )
 
 sealed interface LoginEvent {
     data class EmailChanged(val value: String) : LoginEvent
     data class PasswordChanged(val value: String) : LoginEvent
     data object Submit : LoginEvent
+    data class SendPasswordReset(val email: String) : LoginEvent
 }
 
 @HiltViewModel
@@ -42,10 +45,27 @@ class LoginViewModel @Inject constructor(
     fun onEvent(event: LoginEvent) {
         when (event) {
             is LoginEvent.EmailChanged ->
-                _uiState.update { it.copy(email = event.value, emailError = null, generalError = null) }
+                _uiState.update { it.copy(email = event.value, emailError = null, generalError = null, infoMessage = null) }
             is LoginEvent.PasswordChanged ->
                 _uiState.update { it.copy(password = event.value, passwordError = null, generalError = null) }
             LoginEvent.Submit -> submit()
+            is LoginEvent.SendPasswordReset -> sendPasswordReset(event.email)
+        }
+    }
+
+    private fun sendPasswordReset(email: String) {
+        if (!AuthValidator.isValidEmail(email)) {
+            _uiState.update { it.copy(generalError = R.string.auth_error_invalid_email, infoMessage = null) }
+            return
+        }
+        _uiState.update { it.copy(isLoading = true, generalError = null, infoMessage = null) }
+        viewModelScope.launch {
+            when (val result = authRepository.sendPasswordReset(email)) {
+                // Mensaje neutro: no se revela si el correo tiene cuenta o no
+                AuthResult.Success -> _uiState.update { it.copy(isLoading = false, infoMessage = R.string.reset_sent) }
+                is AuthResult.Failure ->
+                    _uiState.update { it.copy(isLoading = false, generalError = result.error.messageRes) }
+            }
         }
     }
 
