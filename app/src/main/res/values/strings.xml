@@ -13,8 +13,21 @@
 
     <!-- Login / registro -->
     <string name="login_title">Iniciar sesión</string>
+    <string name="login_subtitle">Cuida tus plantas sin olvidarte de nada</string>
     <string name="login_action">Entrar</string>
     <string name="login_go_register">¿No tienes cuenta? Regístrate</string>
+    <string name="auth_email">Correo electrónico</string>
+    <string name="auth_password">Contraseña</string>
+    <string name="auth_show_password">Mostrar contraseña</string>
+    <string name="auth_hide_password">Ocultar contraseña</string>
+    <string name="auth_error_invalid_email">Introduce un correo electrónico válido</string>
+    <string name="auth_error_password_required">Introduce tu contraseña</string>
+    <string name="auth_error_invalid_credentials">Correo o contraseña incorrectos</string>
+    <string name="auth_error_email_in_use">Ya existe una cuenta con ese correo</string>
+    <string name="auth_error_weak_password">La contraseña debe tener al menos 6 caracteres</string>
+    <string name="auth_error_network">Sin conexión. Comprueba tu conexión a internet</string>
+    <string name="auth_error_too_many_requests">Demasiados intentos. Espera unos minutos</string>
+    <string name="auth_error_unknown">Ha ocurrido un error. Inténtalo de nuevo</string>
     <string name="register_title">Crear cuenta</string>
     <string name="register_action">Registrarme</string>
     <string name="register_go_login">Ya tengo cuenta</string>
