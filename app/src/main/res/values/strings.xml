@@ -9,6 +9,7 @@
     <!-- Acciones comunes -->
     <string name="action_back">Volver</string>
     <string name="action_save">Guardar</string>
+    <string name="action_cancel">Cancelar</string>
 
     <!-- Login / registro -->
     <string name="login_title">Iniciar sesión</string>
@@ -28,8 +29,23 @@
         <item quantity="one">Regar mañana</item>
         <item quantity="other">Regar en %1$d días</item>
     </plurals>
-    <string name="detail_title">Planta #%1$d</string>
     <string name="detail_edit">Editar</string>
+    <string name="detail_delete">Borrar</string>
+    <string name="detail_delete_title">¿Borrar esta planta?</string>
+    <string name="detail_delete_message">Se eliminará la planta y todo su historial de cuidados. Esta acción no se puede deshacer.</string>
+    <string name="detail_not_found">Esta planta ya no existe</string>
+    <string name="detail_action_water">Regar</string>
+    <string name="detail_action_fertilize">Abonar</string>
+    <string name="detail_action_prune">Podar</string>
+    <string name="detail_action_repot">Trasplantar</string>
+    <string name="detail_care_registered">Cuidado registrado: %1$s</string>
+    <string name="detail_watering">Riego cada %1$d días</string>
+    <string name="detail_fertilizing">Abono cada %1$d días</string>
+    <string name="detail_next_date">Próximo: %1$s</string>
+    <string name="detail_light">Luz %1$s</string>
+    <string name="detail_light_range">Entre %1$d y %2$d lux</string>
+    <string name="detail_history">Historial de cuidados</string>
+    <string name="detail_history_empty">Todavía no has registrado ningún cuidado.</string>
     <string name="edit_title_new">Nueva planta</string>
     <string name="edit_title_edit">Editar planta</string>
     <string name="edit_name">Nombre *</string>

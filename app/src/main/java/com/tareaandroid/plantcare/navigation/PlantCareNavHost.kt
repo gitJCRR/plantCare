@@ -81,7 +81,6 @@ private fun PlantCareNavHost(navController: NavHostController, modifier: Modifie
         composable<PlantDetailRoute> { entry ->
             val route = entry.toRoute<PlantDetailRoute>()
             PlantDetailScreen(
-                plantId = route.plantId,
                 onEdit = { navController.navigate(PlantEditRoute(route.plantId)) },
                 onBack = { navController.popBackStack() },
             )
