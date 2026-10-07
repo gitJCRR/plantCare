@@ -18,9 +18,9 @@ estructura del código»*.
 | Bloque | Duración | Contenido |
 |---|---|---|
 | 1. Presentación | 0:30 | Quién soy, qué es PlantCare y qué problema resuelve |
-| 2. Demo de la app | 5:30 | Recorrido completo por las funcionalidades |
+| 2. Demo de la app | 6:00 | Recorrido completo por las funcionalidades |
 | 3. Estructura y arquitectura | 2:00 | Paquetes y capas UI → ViewModel → Repository → datos |
-| 4. Código destacado | 4:00 | 5-6 fragmentos que justifican los requisitos |
+| 4. Código destacado | 4:00 (≈ 25 s por archivo) | 5-6 fragmentos que justifican los requisitos |
 | 5. Base de datos y Firebase | 1:00 | Database Inspector y consola de Firebase |
 | 6. Cierre | 0:30 | Puntos fuertes, qué mejoraría y uso de la IA |
 
@@ -30,8 +30,12 @@ estructura del código»*.
 
 - [ ] Emulador encendido **dentro de Android Studio** y la app recién instalada con ▶️.
 - [ ] Cuenta de prueba creada en Firebase (y una **segunda cuenta** para enseñar que cada usuario ve sus plantas).
-- [ ] 3-4 plantas con datos variados: alguna que **«toca regar»** (último riego antiguo), alguna con abono, distintos niveles de luz.
-- [ ] Algún cuidado registrado para que el historial no esté vacío.
+- [ ] 3-4 plantas con datos variados y **foto**: alguna que **«toca regar»** (ya existe «Albahaca» con el riego atrasado), alguna con abono, distintos niveles de luz.
+- [ ] Varios cuidados registrados para que el historial y el **gráfico** no estén vacíos.
+- [ ] Quitar los permisos de cámara y notificaciones antes de grabar para enseñar cómo se piden:
+      `adb shell pm revoke com.tareaandroid.plantcare android.permission.CAMERA` (y lo mismo con `POST_NOTIFICATIONS`),
+      o desde *Ajustes → Apps → PlantCare → Permisos*.
+- [ ] Abrir *Extended controls → Virtual sensors → Light* del emulador para cambiar la luz en directo.
 - [ ] Pestañas abiertas en Android Studio con los archivos del bloque 4, en orden.
 - [ ] Consola de Firebase abierta en *Authentication → Usuarios*.
 - [ ] Notificaciones del PC silenciadas y Norton en modo silencioso.
@@ -65,7 +69,12 @@ estructura del código»*.
 | 2.13 | *Perfil* → email → *Cerrar sesión* | «Al cerrar sesión vuelve al login y no se puede volver atrás» | Perfil, navegación |
 | 2.14 | Entrar con la **segunda cuenta** → lista distinta | «Cada usuario solo ve sus plantas» | Firebase + Room |
 | 2.15 | Girar el emulador / emulador de tablet | «La rejilla añade columnas y la barra pasa a rail lateral» | Diseño adaptativo |
-| 2.16 | *(Fase 7)* Medidor de luz, cámara, notificación | *(pendiente)* | Funcionalidades avanzadas, permisos |
+| 2.16 | Inicio: tarjeta «Activa los recordatorios» → *Activar* → diálogo del sistema → permitir | «El permiso de notificaciones se pide explicando para qué sirve» | **Permisos** |
+| 2.17 | *Perfil → Probar recordatorio ahora* → bajar la barra de notificaciones | «Cada día a las 9:00 WorkManager comprueba qué plantas toca regar» | Notificaciones |
+| 2.18 | Editar una planta → *Hacer foto* → denegar → volver a pulsar → explicación → permitir → foto | «Si deniego el permiso, la app explica para qué lo necesita; si lo deniego para siempre, ofrece abrir los ajustes» | Cámara, **permisos** |
+| 2.19 | Guardar → foto en la tarjeta y en el detalle; enseñar también *Galería* | «También puedo elegir una foto sin dar ningún permiso» | Cámara |
+| 2.20 | Pestaña *Luz*; en *Extended controls* mover el sensor de luz (20 → 2500 → 30 000 lux) | «Mide la luz y me dice qué plantas estarían bien en este sitio» | **Sensor**, pantalla avanzada |
+| 2.21 | Detalle de una planta → bajar hasta el gráfico | «Cuidados de los últimos 6 meses, dibujado con Canvas» | Gráficos |
 
 ## 3. Estructura y arquitectura (2:00)
 
@@ -96,7 +105,10 @@ Abrir cada archivo y señalar las líneas clave (≈ 40 s cada uno).
 | 4.4 | `data/repository/PlantRepositoryImpl.kt` | `flatMapLatest` por usuario; transacción `withTransaction` al registrar un cuidado | Repository |
 | 4.5 | `data/auth/FirebaseAuthRepository.kt` | `callbackFlow` con el `AuthStateListener`; traducción de errores | Firebase, Repository |
 | 4.6 | `di/RepositoryModule.kt` + `DatabaseModule.kt` | `@Binds` interfaz → implementación; `@Provides @Singleton` | Inyección de dependencias |
-| 4.7 | *(Fase 7)* Sensor / cámara / permisos | *(pendiente)* | Avanzadas, permisos |
+| 4.7 | `data/sensor/AndroidLightSensor.kt` | `callbackFlow` + `awaitClose` (el sensor se apaga al salir) | Sensor |
+| 4.8 | `ui/edit/PlantPhotoSection.kt` | Los tres casos del permiso: concedido, explicación, ajustes; `TakePicture` + `FileProvider` | **Permisos**, cámara |
+| 4.9 | `notifications/WateringReminderWorker.kt` + `PlantCareApp.kt` | `@HiltWorker`, `HiltWorkerFactory`, trabajo periódico | Notificaciones, inyección de dependencias |
+| 4.10 | `ui/detail/CareChart.kt` | Barras dibujadas con `Canvas` | Gráficos |
 
 ## 5. Base de datos y Firebase (1:00)
 
@@ -123,3 +135,6 @@ Abrir cada archivo y señalar las líneas clave (≈ 40 s cada uno).
 - **Fase 4:** enseñar que la rejilla se reordena sola al editar el riego (flujo reactivo de Room).
 - **Fase 5:** enseñar dos cuentas distintas y la sesión recordada al reabrir la app. Mostrar la consola
   de Firebase con los usuarios.
+- **Fase 7:** es la parte más vistosa; dedicarle ≈ 2 minutos de la demo. Enseñar **los permisos
+  denegados y concedidos** (requisito obligatorio) y cambiar la luz del sensor en directo. Mencionar
+  que son 4 funcionalidades avanzadas cuando se piden 2.

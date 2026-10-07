@@ -40,8 +40,8 @@ problema real y permite aplicar la mayoría de los contenidos de la asignatura.
 | Registro | `RegisterRoute` | Alta de usuario con confirmación de contraseña |
 | Mis plantas (inicio) | `HomeRoute` | Rejilla con las plantas del usuario, ordenadas por próximo riego; aviso «Toca regar» |
 | Detalle | `PlantDetailRoute(plantId)` | Ficha de la planta, botones Regar / Abonar / Podar / Trasplantar, historial de cuidados, editar y borrar |
-| Añadir / editar | `PlantEditRoute(plantId)` | Formulario validado (y foto de la cámara en la fase 7); `plantId = -1` crea una nueva |
-| Medidor de luz | `LightMeterRoute` | Lectura del sensor de luz ambiental en lux |
+| Añadir / editar | `PlantEditRoute(plantId)` | Formulario validado con foto (cámara o galería); `plantId = -1` crea una nueva |
+| Medidor de luz | `LightMeterRoute` | **Pantalla de funcionalidades avanzadas:** lectura en tiempo real del sensor de luz y si cada planta estaría bien en ese sitio |
 | Perfil / ajustes | `SettingsRoute` | Email de la cuenta y cierre de sesión con confirmación *(fase 6: ajustes de recordatorios y tema)* |
 
 La navegación usa **Navigation Compose con rutas type-safe**: cada destino es una clase
@@ -114,21 +114,24 @@ Organización de paquetes:
 com.tareaandroid.plantcare
 ├── PlantCareApp.kt            @HiltAndroidApp
 ├── MainActivity.kt            @AndroidEntryPoint
-├── model/                     modelo de dominio: Plant, CareEvent, User, LightLevel, CareType
+├── model/                     modelo de dominio: Plant, CareEvent, User, LightLevel, CareType, CareStats
 ├── data/
 │   ├── auth/                  AuthRepository (interfaz) y FirebaseAuthRepository
+│   ├── photo/                 PhotoStorage (fotos en el almacenamiento privado)
+│   ├── sensor/                LightSensor (interfaz) y AndroidLightSensor
 │   ├── local/                 PlantCareDatabase, Converters, Mappers (entidad <-> modelo)
 │   │   ├── entity/            PlantEntity, CareEventEntity (tablas)
 │   │   └── dao/               PlantDao, CareEventDao (consultas)
 │   └── repository/            PlantRepository (interfaz) y PlantRepositoryImpl
-├── di/                        DatabaseModule, FirebaseModule, RepositoryModule (Hilt)
+├── di/                        DatabaseModule, FirebaseModule, RepositoryModule, SensorModule (Hilt)
+├── notifications/             NotificationHelper, ReminderScheduler, WateringReminderWorker
 ├── navigation/                Routes, TopLevelDestination, PlantCareNavHost, SessionViewModel
 └── ui/
     ├── auth/                  Login/Register Screen + ViewModel, AuthValidator, componentes
-    ├── home/                  HomeScreen, HomeViewModel, PlantCard
-    ├── detail/                PlantDetailScreen, PlantDetailViewModel
-    ├── edit/                  PlantEditScreen, PlantEditViewModel
-    ├── light/                 medidor de luz
+    ├── home/                  HomeScreen, HomeViewModel, PlantCard, NotificationPermissionBanner
+    ├── detail/                PlantDetailScreen, PlantDetailViewModel, CareChart
+    ├── edit/                  PlantEditScreen, PlantEditViewModel, PlantPhotoSection
+    ├── light/                 LightMeterScreen, LightMeterViewModel
     ├── settings/              SettingsScreen, SettingsViewModel
     ├── components/            componentes y textos reutilizables
     └── theme/                 tema Material 3
@@ -265,7 +268,8 @@ GitHub.
 | — Entorno | 07/10/2026 | Solución al bloqueo SSL del antivirus | `5e5e2da` |
 | 5. Autenticación | 07/10/2026 | Firebase Auth, `AuthRepository`, login y registro reales, recuperación de contraseña, sesión persistente, plantas por usuario, perfil con cierre de sesión | `631178a` … `70009cc` (5 commits) |
 | 6. Perfil y ajustes | *(pendiente)* | Preferencias (recordatorios, tema), datos de la cuenta | |
-| 7. Funcionalidades avanzadas | *(pendiente)* | Sensor de luz, cámara, notificaciones, gráficos; permisos | |
+| — Documentación | 07/10/2026 | Memoria de la fase 5 y guion del vídeo | `a6198e1` |
+| 7. Funcionalidades avanzadas | 07/10/2026 | Sensor de luz, cámara, notificaciones con WorkManager, gráfico; permisos `CAMERA` y `POST_NOTIFICATIONS` | `d06ceb4` … `d5d89e2` (4 commits) |
 | 8. Adaptativo y pulido | *(pendiente)* | Lista-detalle en tablet, tema propio, accesibilidad | |
 
 **Fase 4 en detalle.** Se dividió en pasos pequeños, cada uno probado en el emulador antes de
@@ -292,6 +296,19 @@ registró la app y activó el proveedor de correo y contraseña. Después:
 La validación de formularios se probó en el emulador mediante `adb`; el registro e inicio de
 sesión reales contra Firebase los probó el autor en el emulador (registro, sesión recordada al
 reabrir, cierre de sesión, contraseña incorrecta y nuevo inicio de sesión conservando sus plantas).
+
+**Fase 7 en detalle.** Se adelantó a la fase 6 porque los ajustes de los recordatorios dependen de
+las notificaciones y porque cubre el único requisito técnico que faltaba (permisos):
+
+1. **Medidor de luz** (`d06ceb4`): sensor `TYPE_LIGHT` convertido en `Flow` y comparación con las
+   plantas del usuario. Probado simulando 20, 400, 2500 y 30 000 lux con `adb emu sensor set light`.
+2. **Cámara** (`14c2f5a`): permiso `CAMERA`, `TakePicture` + `FileProvider`, galería con el *Photo
+   Picker* y Coil para mostrar las fotos. Probado denegando el permiso, viendo la explicación,
+   concediéndolo y haciendo una foto con la cámara del emulador.
+3. **Notificaciones** (`e423e81`): `WateringReminderWorker` diario con WorkManager + Hilt y permiso
+   `POST_NOTIFICATIONS` pedido desde una tarjeta en Inicio. Probado con una planta cuyo último riego
+   se retrasó 5 días: la notificación muestra «Hoy toca regar 1 planta — Albahaca».
+4. **Gráfico** (`d5d89e2`): cuidados por mes de los últimos 6 meses dibujados con `Canvas`.
 
 ### 5.2 Historial de commits
 
@@ -320,6 +337,11 @@ que ha participado la IA incluyen la línea `Co-Authored-By: Claude` (ver aparta
 | `a5f65fd` | 07/10/2026 | feat: pantalla de login con validación y LoginViewModel | `LoginUiState`/`LoginEvent`, `AuthValidator` con 3 pruebas, campo de contraseña con mostrar/ocultar | Pantalla de login, estado |
 | `fb6a9f8` | 07/10/2026 | feat: pantalla de registro y recuperación de contraseña | `RegisterViewModel`, confirmación de contraseña, diálogo de recuperación | Pantalla de registro |
 | `70009cc` | 07/10/2026 | feat: sesión persistente y plantas asociadas al usuario | `SessionViewModel`, `flatMapLatest` por usuario, perfil, `FakeAuthRepository`, 3 pruebas | Funcionamiento, navegación coherente, persistencia |
+| `a6198e1` | 07/10/2026 | docs: memoria de la fase 5 y guion del vídeo | Firebase en la memoria, `docs/guion-video.md` | Documentación, vídeo |
+| `d06ceb4` | 07/10/2026 | feat: medidor de luz con el sensor de luz ambiental | `LightSensor` con `callbackFlow`, `LightMeterViewModel`, 2 pruebas | Funcionalidad avanzada (sensor), pantalla avanzada |
+| `14c2f5a` | 07/10/2026 | feat: foto de la planta con la cámara y gestión del permiso CAMERA | Permiso con explicación y acceso a ajustes, `TakePicture`, `FileProvider`, galería, Coil | Funcionalidad avanzada (cámara), **permisos** |
+| `e423e81` | 07/10/2026 | feat: recordatorios de riego con notificaciones y WorkManager | `@HiltWorker`, trabajo periódico, canal, `POST_NOTIFICATIONS`, 3 pruebas | Funcionalidad avanzada (notificaciones), **permisos** |
+| `d5d89e2` | 07/10/2026 | feat: gráfico de cuidados por mes en el detalle de la planta | `monthlyCareStats` + `Canvas`, 2 pruebas | Funcionalidad avanzada (gráficos) |
 
 ### 5.3 Justificación de los requisitos técnicos obligatorios
 
@@ -338,17 +360,20 @@ Cada requisito del enunciado, cómo se ha implementado y dónde puede comprobars
 | 9 | Patrón Repository | Dos repositorios definidos como interfaz con su implementación: `PlantRepository` (Room, lógica de negocio y transacciones) y `AuthRepository` (Firebase). Se combinan: el de plantas pide al de autenticación el usuario actual. En las pruebas se sustituye Firebase por `FakeAuthRepository`. | `data/repository/`, `data/auth/` | ✅ |
 | 10 | Persistencia Room y/o Firebase | **Ambas**: Room con dos tablas relacionadas 1:N, consultas reactivas y esquema exportado; Firebase Authentication para las cuentas de usuario (ver apartado 3). | `data/local/`, `data/auth/` | ✅ |
 | 11 | Inyección de dependencias | Hilt: `@HiltAndroidApp`, `@AndroidEntryPoint`, `@HiltViewModel`; `DatabaseModule` y `FirebaseModule` (`@Provides @Singleton`) crean la base de datos y `FirebaseAuth`; `RepositoryModule` (`@Binds`) asocia cada interfaz con su implementación. | `di/`, `PlantCareApp.kt` | ✅ |
-| 12 | Gestión de permisos | *(fase 7)* `CAMERA` y `POST_NOTIFICATIONS` solicitados en tiempo de ejecución, con explicación y manejo de la denegación. | | ⬜ |
+| 12 | Gestión de permisos | Solo se piden los permisos imprescindibles y **en el momento en que hacen falta**: `CAMERA` al pulsar «Hacer foto» y `POST_NOTIFICATIONS` (Android 13+) desde una tarjeta que explica para qué sirve. Se cubren los tres casos: concedido, denegado una vez (diálogo con la explicación, `shouldShowRequestPermissionRationale`) y denegado definitivamente (botón para abrir los ajustes de la app). Siempre hay una alternativa sin permiso (foto de la galería con el *Photo Picker*) y las fotos se guardan en el almacenamiento privado, por lo que no hace falta permiso de almacenamiento. | `ui/edit/PlantPhotoSection.kt`, `ui/home/NotificationPermissionBanner.kt`, `AndroidManifest.xml` | ✅ |
 | 13 | Interfaz adaptativa | `NavigationSuiteScaffold` (barra inferior / rail lateral), rejilla `GridCells.Adaptive`, anchos máximos en formulario y detalle; *(fase 8)* lista-detalle en tablet. | `navigation/PlantCareNavHost.kt`, `ui/home/HomeScreen.kt` | 🟡 |
 
 ### 5.4 Funcionalidades avanzadas (mínimo 2)
 
 | Funcionalidad | Uso en la app | Dónde | Estado |
 |---|---|---|---|
-| Sensor de luz | Mide los lux de un lugar y los compara con la luz que necesita la planta | `ui/light/` | ⬜ |
-| Cámara | Foto de cada planta | `ui/edit/` | ⬜ |
-| Notificaciones | Recordatorios de riego (WorkManager) | *(pendiente)* | ⬜ |
-| Gráficos (extra) | Historial de cuidados por mes | *(pendiente)* | ⬜ |
+| Sensor de luz | Pantalla «Luz»: mide los lux en tiempo real (`SensorManager`, `TYPE_LIGHT`), los clasifica en baja/media/alta y dice para cada planta si estaría bien en ese sitio, si necesita más luz o menos. El sensor solo está activo mientras se ve la pantalla. | `data/sensor/`, `ui/light/` | ✅ |
+| Cámara | Foto de cada planta desde el formulario (`TakePicture` + `FileProvider`) o desde la galería; se muestra en la tarjeta, el detalle y el formulario con Coil. Las fotos sustituidas o de plantas borradas se eliminan. | `data/photo/`, `ui/edit/PlantPhotoSection.kt`, `ui/components/PlantPhoto.kt` | ✅ |
+| Notificaciones | Aviso diario a las 9:00 con las plantas que toca regar, programado con WorkManager (funciona con la app cerrada y tras reiniciar el móvil). Al tocarlo se abre la app. Botón «Probar recordatorio ahora» en Perfil. | `notifications/` | ✅ |
+| Gráficos | Barras apiladas con los cuidados de los últimos 6 meses (riegos y otros) en el detalle, dibujadas con `Canvas` y con descripción para lectores de pantalla. | `model/CareStats.kt`, `ui/detail/CareChart.kt` | ✅ |
+
+Se piden **al menos dos**; PlantCare implementa **cuatro** de las propuestas en el enunciado
+(sensores, cámara, notificaciones y gráficos).
 
 ### 5.5 Tecnologías y versiones
 
@@ -360,6 +385,9 @@ Cada requisito del enunciado, cómo se ha implementado y dónde puede comprobars
 | Navigation Compose | 2.10.2 |
 | Hilt | 2.60.1 |
 | Room | 2.8.5 |
+| Firebase BoM (Authentication) | 34.19.0 |
+| Coil (imágenes) | 3.3.0 |
+| WorkManager | 2.12.0 |
 | minSdk / targetSdk | 26 / 37 |
 
 ### 5.6 Código más relevante
@@ -451,14 +479,60 @@ override fun observePlants(): Flow<List<Plant>> =
 val startDestination: Any = remember { if (currentUser != null) HomeRoute else LoginRoute }
 ```
 
+**Sensor de luz como Flow** (`data/sensor/AndroidLightSensor.kt`). El listener se registra al
+empezar a observar y se quita al dejar de hacerlo (`awaitClose`), así el sensor no gasta batería
+cuando la pantalla no está visible:
+
+```kotlin
+callbackFlow {
+    val listener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) { trySend(event.values[0]) }
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+    }
+    sensorManager.registerListener(listener, lightSensor, SensorManager.SENSOR_DELAY_UI)
+    awaitClose { sensorManager.unregisterListener(listener) }
+}
+```
+
+**Gestión del permiso de cámara** (`ui/edit/PlantPhotoSection.kt`): concedido, denegado una vez
+(se explica antes de volver a pedirlo) o denegado definitivamente (se ofrece abrir los ajustes):
+
+```kotlin
+when {
+    context.hasCameraPermission() -> openCamera()
+    context.shouldShowCameraRationale() -> dialog = PermissionDialog.RATIONALE
+    else -> requestCameraPermission.launch(Manifest.permission.CAMERA)
+}
+```
+
+**Tarea diaria en segundo plano** (`notifications/WateringReminderWorker.kt`). Hilt inyecta el
+repositorio en el Worker, igual que en los ViewModels:
+
+```kotlin
+@HiltWorker
+class WateringReminderWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val plantRepository: PlantRepository,
+    private val notificationHelper: NotificationHelper,
+) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        val plantsToWater = plantRepository.observePlants().first().filter { it.needsWater(LocalDate.now()) }
+        notificationHelper.showWateringReminder(plantsToWater)
+        return Result.success()
+    }
+}
+```
+
 ### 5.7 Pruebas
 
 | Tipo | Ubicación | Pruebas | Resultado |
 |---|---|---|---|
-| Unitarias (JVM) | `app/src/test/.../model/PlantTest.kt`, `.../ui/auth/AuthValidatorTest.kt` | Lógica de riego y abono (5); validación de email y contraseña (3) | ✅ 8/8 |
+| Unitarias (JVM) | `app/src/test/...` | Lógica de riego y abono (5); validación de email y contraseña (3); clasificación de la luz (2); hora del recordatorio (3); estadísticas del gráfico (2) | ✅ 15/15 |
 | Instrumentadas | `app/src/androidTest/.../data/` | DAO (3) y repositorio con usuarios simulados (6) sobre Room en memoria | ✅ 9/9 |
 | Manuales (fase 4) | Emulador Medium Phone (API 37) | Alta con validación, edición, rejilla ordenada, riego/abono/poda/trasplante, historial, borrado con confirmación, persistencia tras reiniciar | ✅ |
 | Manuales (fase 5) | Emulador, cuenta real de Firebase | Validaciones de login y registro, registro real, sesión recordada al reabrir, cierre de sesión, contraseña incorrecta, nuevo inicio de sesión conservando las plantas | ✅ |
+| Manuales (fase 7) | Emulador | Sensor de luz simulado a 20/400/2500/30 000 lux; permiso de cámara denegado → explicación → concedido → foto; foto en tarjeta y detalle; tarjeta de notificaciones → permiso concedido; recordatorio real; gráfico con datos | ✅ |
 
 ## 6. Problemas encontrados y soluciones
 
@@ -475,6 +549,11 @@ val startDestination: Any = remember { if (currentUser != null) HomeRoute else L
 | Database Inspector mostraba «Nothing to show» | Room crea la base de datos la primera vez que se usa (al abrir «Mis plantas»), no al arrancar la app; además, el emulador tenía la pantalla apagada |
 | Las plantas de prueba desaparecieron del emulador | La tarea `connectedDebugAndroidTest` **desinstala la app** al terminar y con ella su base de datos. A partir de entonces las pruebas instrumentadas se lanzan con `installDebugAndroidTest` + `adb shell am instrument`, que conserva los datos |
 | Las plantas creadas antes de añadir el login tenían `userId = "local"` y no se verían con la cuenta nueva | El repositorio las asigna al primer usuario que inicia sesión (`reassignOwner`); cubierto por una prueba |
+| Error de compilación *Module was compiled with an incompatible version of Kotlin* al añadir Coil 3.6 | Las últimas versiones de Coil exigen Kotlin 2.4 y el proyecto usa 2.2. Se consultó en Maven qué versión de Kotlin requería cada una y se eligió Coil 3.3.0 en lugar de actualizar todo el proyecto |
+| GitHub respondió *Internal Server Error* al hacer `push` | Error temporal del servidor; el commit quedó guardado en local y se subió con el siguiente |
+| Para probar la notificación hacía falta una planta con el riego atrasado, y la app no permite poner fechas pasadas | Se copió la base de datos del emulador, se aplicó su diario `-wal` y se modificó con `sql.js` (Node) en una carpeta temporal; después se devolvió al emulador. No forma parte de la app |
+| Cómo probar el sensor de luz sin un móvil real | El emulador permite simularlo: `adb emu sensor set light 2500` o *Extended controls → Virtual sensors* |
+| Los meses del gráfico y las fechas aparecen en inglés en el emulador | Se usa el idioma del sistema (`DateTimeFormatter` con la configuración regional); en un móvil en español aparecen en español |
 
 *(Se amplía durante el desarrollo; ver `diario.md`.)*
 
@@ -512,6 +591,7 @@ en `docs/diario.md`, y los commits en los que ha participado incluyen la línea
 | Fase 4 (datos y MVVM) | Diseño de las tablas, generación del código de datos, ViewModels y pantallas, pruebas automáticas y pruebas en el emulador mediante `adb` | Aprobación del plan de la fase, decisión de hacer un commit probado por paso, revisión de las pantallas |
 | Problemas | Diagnóstico del error SSL de Gradle (antivirus) y de los fallos de usabilidad detectados al probar | Configuración de las exclusiones en Norton |
 | Fase 5 (Firebase) | Comparativa Firebase frente a usuarios en Room; generación de los repositorios, ViewModels, pantallas y pruebas; pruebas de validación en el emulador | Decisión de usar Firebase; creación del proyecto en la consola de Firebase; **prueba real de registro, inicio y cierre de sesión** (la IA no introduce credenciales en servicios externos) |
+| Fase 7 (avanzadas) | Propuesta de reordenar las fases; código del sensor, cámara, permisos, WorkManager y gráfico; pruebas en el emulador (sensor simulado, cámara, permisos, notificación); diagnóstico de la incompatibilidad de Coil | Aprobación del plan y del orden de las fases |
 | Vídeo | Guion del vídeo (`docs/guion-video.md`) actualizado en cada fase | Grabación y locución |
 
 **Valoración.** *(Pendiente, al final: qué ha aportado, qué limitaciones se han encontrado, qué

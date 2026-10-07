@@ -119,3 +119,39 @@ entrar. Todo correcto.
 - Generó el código de la fase y lo probó en el emulador salvo el registro e inicio de sesión
   reales, que hizo el autor (la IA no introduce credenciales en servicios externos).
 - Creó el guion del vídeo (`docs/guion-video.md`) a petición del autor.
+
+## 2026-10-07 — Fase 7: funcionalidades avanzadas y permisos
+
+Se decidió adelantar la fase 7 a la 6: los ajustes de recordatorios dependen de las
+notificaciones y esta fase cubre el único requisito técnico pendiente (permisos).
+
+1. `d06ceb4` Medidor de luz: `LightSensor` + `AndroidLightSensor` (`callbackFlow`),
+   `LightMeterViewModel` y pantalla. Probado con `adb emu sensor set light` a 20, 400, 2500 y 30 000 lux.
+2. `14c2f5a` Cámara: permiso `CAMERA` con explicación y acceso a ajustes, `TakePicture` +
+   `FileProvider`, galería con el Photo Picker, `PhotoStorage` y Coil. Probado: denegar → explicación
+   → permitir → foto con la cámara del emulador → foto en tarjeta y detalle.
+3. `e423e81` Notificaciones: `WateringReminderWorker` (`@HiltWorker`), `ReminderScheduler` diario a
+   las 9:00, `NotificationHelper`, permiso `POST_NOTIFICATIONS` desde una tarjeta en Inicio. Probado
+   con la planta «Albahaca» con el riego atrasado: notificación «Hoy toca regar 1 planta».
+4. `d5d89e2` Gráfico de cuidados por mes con `Canvas`.
+
+Pruebas: 15 unitarias y 9 instrumentadas, todas superadas.
+
+### Problemas encontrados
+
+- Coil 3.6 exige Kotlin 2.4 (el proyecto usa 2.2): *Module was compiled with an incompatible
+  version of Kotlin*. Se miró en Maven el Kotlin que pide cada versión y se usó Coil 3.3.0.
+- GitHub devolvió *Internal Server Error* en un push; se subió en el siguiente.
+- Para probar la notificación hacía falta un riego atrasado. La base de datos del emulador tenía
+  los datos en el archivo `-wal` (sin volcar), así que se aplicaron sus páginas a mano y se editó
+  con `sql.js` en una carpeta temporal antes de devolverla al emulador.
+- El fondo de las barras del gráfico no se veía (mismo color que la tarjeta): se cambió a `surface`.
+- «Luz Media» en mitad de frase: los niveles se muestran en minúscula dentro del texto.
+
+### Uso de la IA
+
+- Propuso el cambio de orden de las fases y lo justificó con los requisitos pendientes.
+- Generó el código de los cuatro pasos y lo probó en el emulador con `adb` (sensor simulado,
+  permisos, cámara, notificación).
+- Diagnosticó la incompatibilidad de versiones de Coil.
+- Amplió el guion del vídeo con la demo de la fase 7.

@@ -14,7 +14,7 @@ móviles*). Se actualiza en cada fase del desarrollo.
 | Pantalla de inicio con elementos de la temática | ✅ | `ui/home/HomeScreen.kt`: rejilla de plantas desde Room, aviso de riego, estado vacío |
 | Pantalla de detalle | ✅ | `ui/detail/PlantDetailScreen.kt`: ficha, cuidados, historial, editar y borrar |
 | Pantalla de perfil/ajustes | 🟡 | `ui/settings/SettingsScreen.kt`: email y cierre de sesión; faltan ajustes (fase 6) |
-| Pantalla de funcionalidades avanzadas | 🟡 | `ui/light/LightMeterScreen.kt` (sensor de luz); cámara en `ui/edit` |
+| Pantalla de funcionalidades avanzadas | ✅ | `ui/light/LightMeterScreen.kt` (sensor de luz); además cámara, notificaciones y gráfico |
 
 ## 2. Requisitos técnicos obligatorios
 
@@ -31,17 +31,17 @@ móviles*). Se actualiza en cada fase del desarrollo.
 | Patrón Repository | ✅ | `PlantRepository` (Room) y `AuthRepository` (Firebase), interfaz + implementación |
 | Persistencia Room y/o Firebase | ✅ | Ambas: Room (`plants`, `care_events`) y Firebase Authentication |
 | Inyección de dependencias | ✅ | Hilt: `DatabaseModule`, `FirebaseModule`, `RepositoryModule`, `@HiltViewModel` |
-| Gestión de permisos Android | ⬜ | Previsto: `CAMERA`, `POST_NOTIFICATIONS` |
+| Gestión de permisos Android | ✅ | `CAMERA` y `POST_NOTIFICATIONS` en tiempo de ejecución, con explicación y acceso a ajustes |
 | Interfaz adaptativa | 🟡 | Barra/rail, rejilla `GridCells.Adaptive`, anchos máximos; falta lista-detalle en tablet |
 
 ## 3. Funcionalidades avanzadas (mínimo 2)
 
 | Funcionalidad | Estado | Uso en la app |
 |---|---|---|
-| Sensor de luz | ⬜ | Medir los lux de un lugar y compararlos con lo que necesita la planta |
-| Cámara | ⬜ | Foto de cada planta |
-| Notificaciones | ⬜ | Recordatorios de riego con WorkManager |
-| Gráficos (opcional) | ⬜ | Historial de cuidados por mes |
+| Sensor de luz | ✅ | Medir los lux de un lugar y compararlos con lo que necesita la planta |
+| Cámara | ✅ | Foto de cada planta |
+| Notificaciones | ✅ | Recordatorios de riego con WorkManager |
+| Gráficos (opcional) | ✅ | Historial de cuidados por mes |
 
 ## 4. Documentación (memoria)
 
@@ -80,7 +80,7 @@ Borrador en [`memoria.md`](memoria.md); notas del día a día en [`diario.md`](d
 | Compose, navegación y estado | 1 | Componentes separados, navegación type-safe, `UiState` | ✅ |
 | Arquitectura y organización | 1 | UI → ViewModel → Repository → fuente de datos, Hilt, paquetes por capa | ✅ |
 | Base de datos | 1 | Room (`Plant`, `CareEvent`, relación 1:N) + Firebase Auth | ✅ |
-| Funcionalidades avanzadas | 1 | Sensor de luz, cámara, notificaciones (+ gráficos) | ⬜ |
+| Funcionalidades avanzadas | 1 | Sensor de luz, cámara, notificaciones y gráficos | ✅ |
 | Diseño adaptativo | 1 | `NavigationSuiteScaffold`, rejilla adaptativa, lista-detalle en tablet | 🟡 |
 | Documentación | 1 | `docs/memoria.md` → PDF | 🟡 |
 | GitHub | 1 | Commits pequeños y descriptivos por fase | ✅ en curso |
