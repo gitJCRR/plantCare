@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tareaandroid.plantcare.R
+import com.tareaandroid.plantcare.data.photo.PhotoFile
 import com.tareaandroid.plantcare.model.LightLevel
 import com.tareaandroid.plantcare.ui.components.labelRes
 import com.tareaandroid.plantcare.ui.theme.PlantCareTheme
@@ -62,7 +63,12 @@ fun PlantEditScreen(
         if (uiState.saved) onDone()
     }
 
-    PlantEditContent(uiState = uiState, onEvent = viewModel::onEvent, onBack = onBack)
+    PlantEditContent(
+        uiState = uiState,
+        onEvent = viewModel::onEvent,
+        onBack = onBack,
+        createPhotoFile = viewModel::createPhotoFile,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,6 +77,7 @@ fun PlantEditContent(
     uiState: PlantEditUiState,
     onEvent: (PlantEditEvent) -> Unit,
     onBack: () -> Unit,
+    createPhotoFile: () -> PhotoFile,
 ) {
     Scaffold(
         topBar = {
@@ -100,7 +107,7 @@ fun PlantEditContent(
                     .verticalScroll(rememberScrollState()),
                 contentAlignment = Alignment.TopCenter,
             ) {
-                PlantForm(uiState, onEvent, Modifier.widthIn(max = 600.dp).padding(16.dp))
+                PlantForm(uiState, onEvent, createPhotoFile, Modifier.widthIn(max = 600.dp).padding(16.dp))
             }
         }
     }
@@ -108,8 +115,14 @@ fun PlantEditContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PlantForm(uiState: PlantEditUiState, onEvent: (PlantEditEvent) -> Unit, modifier: Modifier = Modifier) {
+private fun PlantForm(
+    uiState: PlantEditUiState,
+    onEvent: (PlantEditEvent) -> Unit,
+    createPhotoFile: () -> PhotoFile,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        PlantPhotoSection(photoPath = uiState.photoPath, createPhotoFile = createPhotoFile, onEvent = onEvent)
         OutlinedTextField(
             value = uiState.name,
             onValueChange = { onEvent(PlantEditEvent.NameChanged(it)) },
@@ -232,6 +245,7 @@ private fun PlantEditPreview() {
             uiState = PlantEditUiState(isNew = true, name = "Monstera", needsFertilizer = true, nameError = false),
             onEvent = {},
             onBack = {},
+            createPhotoFile = { error("Sin cámara en la vista previa") },
         )
     }
 }

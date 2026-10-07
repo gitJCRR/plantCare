@@ -1,9 +1,12 @@
 package com.tareaandroid.plantcare.ui.edit
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.tareaandroid.plantcare.data.photo.PhotoFile
+import com.tareaandroid.plantcare.data.photo.PhotoStorage
 import com.tareaandroid.plantcare.data.repository.PlantRepository
 import com.tareaandroid.plantcare.model.LightLevel
 import com.tareaandroid.plantcare.model.Plant
@@ -29,6 +32,8 @@ data class PlantEditUiState(
     val fertilizeEveryDays: String = "30",
     val lightLevel: LightLevel = LightLevel.MEDIUM,
     val notes: String = "",
+    /** Ruta de la foto en el almacenamiento de la app, o `null` si no tiene. */
+    val photoPath: String? = null,
     val nameError: Boolean = false,
     val waterError: Boolean = false,
     val fertilizeError: Boolean = false,
@@ -47,6 +52,10 @@ sealed interface PlantEditEvent {
     data class FertilizeEveryDaysChanged(val value: String) : PlantEditEvent
     data class LightLevelChanged(val value: LightLevel) : PlantEditEvent
     data class NotesChanged(val value: String) : PlantEditEvent
+    /** La cámara ha guardado la foto en [path] (archivo creado con [PlantEditViewModel.createPhotoFile]). */
+    data class PhotoTaken(val path: String) : PlantEditEvent
+    data class PhotoPickedFromGallery(val uri: Uri) : PlantEditEvent
+    data object PhotoRemoved : PlantEditEvent
     data object Save : PlantEditEvent
 }
 
@@ -54,6 +63,7 @@ sealed interface PlantEditEvent {
 class PlantEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: PlantRepository,
+    private val photoStorage: PhotoStorage,
 ) : ViewModel() {
 
     // El parámetro de navegación llega en el SavedStateHandle y se lee de forma type-safe
@@ -62,6 +72,9 @@ class PlantEditViewModel @Inject constructor(
 
     /** Planta original al editar, para conservar los campos que el formulario no muestra. */
     private var original: Plant? = null
+
+    /** Fotos creadas en esta pantalla; las que no se guarden se borran al salir. */
+    private val newPhotos = mutableListOf<String>()
 
     private val _uiState = MutableStateFlow(PlantEditUiState(isNew = plantId == null, isLoading = plantId != null))
     val uiState: StateFlow<PlantEditUiState> = _uiState.asStateFlow()
@@ -87,6 +100,7 @@ class PlantEditViewModel @Inject constructor(
                     fertilizeEveryDays = (plant.fertilizeEveryDays ?: 30).toString(),
                     lightLevel = plant.lightLevel,
                     notes = plant.notes,
+                    photoPath = plant.photoUri,
                 )
             }
         }
@@ -105,6 +119,14 @@ class PlantEditViewModel @Inject constructor(
                 _uiState.update { it.copy(fertilizeEveryDays = event.value.onlyDigits(), fertilizeError = false) }
             is PlantEditEvent.LightLevelChanged -> _uiState.update { it.copy(lightLevel = event.value) }
             is PlantEditEvent.NotesChanged -> _uiState.update { it.copy(notes = event.value) }
+            is PlantEditEvent.PhotoTaken -> _uiState.update { it.copy(photoPath = event.path) }
+            is PlantEditEvent.PhotoPickedFromGallery -> viewModelScope.launch {
+                photoStorage.importFromGallery(event.uri)?.let { path ->
+                    newPhotos += path
+                    _uiState.update { it.copy(photoPath = path) }
+                }
+            }
+            PlantEditEvent.PhotoRemoved -> _uiState.update { it.copy(photoPath = null) }
             PlantEditEvent.Save -> save()
         }
     }
@@ -135,13 +157,25 @@ class PlantEditViewModel @Inject constructor(
             lastFertilized = if (state.needsFertilizer) base.lastFertilized ?: today else base.lastFertilized,
             lightLevel = state.lightLevel,
             notes = state.notes.trim(),
+            photoUri = state.photoPath,
         )
 
         _uiState.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             repository.savePlant(plant)
+            // La foto guardada deja de ser «nueva»; si se ha sustituido la anterior, se borra
+            newPhotos.remove(state.photoPath)
+            if (base.photoUri != state.photoPath) photoStorage.delete(base.photoUri)
             _uiState.update { it.copy(isSaving = false, saved = true) }
         }
+    }
+
+    /** Crea el archivo donde la app de cámara guardará la foto. */
+    fun createPhotoFile(): PhotoFile = photoStorage.createPhotoFile().also { newPhotos += it.path }
+
+    /** Si se sale sin guardar, se borran las fotos hechas en esta pantalla. */
+    override fun onCleared() {
+        newPhotos.forEach(photoStorage::delete)
     }
 
     private fun String.onlyDigits() = filter(Char::isDigit).take(3)

@@ -55,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -68,6 +69,7 @@ import com.tareaandroid.plantcare.model.CareEvent
 import com.tareaandroid.plantcare.model.CareType
 import com.tareaandroid.plantcare.model.LightLevel
 import com.tareaandroid.plantcare.model.Plant
+import com.tareaandroid.plantcare.ui.components.PlantPhoto
 import com.tareaandroid.plantcare.ui.components.labelRes
 import com.tareaandroid.plantcare.ui.theme.PlantCareTheme
 import kotlinx.coroutines.launch
@@ -189,20 +191,15 @@ private fun PlantDetailBody(state: PlantDetailUiState.Success, onCare: (CareType
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Box(
+            PlantPhoto(
+                photoPath = plant.photoUri,
+                contentDescription = stringResource(R.string.photo_description),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
-                    .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(16.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Outlined.LocalFlorist,
-                    contentDescription = null,
-                    modifier = Modifier.size(72.dp),
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            }
+                    .height(if (plant.photoUri != null) 260.dp else 180.dp)
+                    .clip(RoundedCornerShape(16.dp)),
+                iconSize = 72.dp,
+            )
         }
         item {
             Column {

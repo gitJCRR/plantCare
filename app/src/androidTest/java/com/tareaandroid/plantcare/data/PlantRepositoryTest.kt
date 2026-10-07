@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.tareaandroid.plantcare.data.local.PlantCareDatabase
 import com.tareaandroid.plantcare.data.local.toEntity
+import com.tareaandroid.plantcare.data.photo.PhotoStorage
 import com.tareaandroid.plantcare.data.repository.PlantRepositoryImpl
 import com.tareaandroid.plantcare.model.CareType
 import com.tareaandroid.plantcare.model.Plant
@@ -38,7 +39,7 @@ class PlantRepositoryTest {
             PlantCareDatabase::class.java,
         ).build()
         auth = FakeAuthRepository(ana)
-        repository = PlantRepositoryImpl(db, auth)
+        repository = PlantRepositoryImpl(db, auth, PhotoStorage(ApplicationProvider.getApplicationContext()))
     }
 
     @After

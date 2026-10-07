@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Carpetas que FileProvider puede compartir: solo la de fotos de plantas (almacenamiento privado) -->
+<paths>
+    <files-path
+        name="plant_photos"
+        path="photos/" />
+</paths>

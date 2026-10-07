@@ -6,6 +6,7 @@ import com.tareaandroid.plantcare.data.local.PlantCareDatabase
 import com.tareaandroid.plantcare.data.local.entity.CareEventEntity
 import com.tareaandroid.plantcare.data.local.toEntity
 import com.tareaandroid.plantcare.data.local.toModel
+import com.tareaandroid.plantcare.data.photo.PhotoStorage
 import com.tareaandroid.plantcare.model.CareEvent
 import com.tareaandroid.plantcare.model.CareType
 import com.tareaandroid.plantcare.model.Plant
@@ -25,6 +26,7 @@ import javax.inject.Singleton
 class PlantRepositoryImpl @Inject constructor(
     private val database: PlantCareDatabase,
     private val authRepository: AuthRepository,
+    private val photoStorage: PhotoStorage,
 ) : PlantRepository {
 
     private val plantDao = database.plantDao()
@@ -70,7 +72,9 @@ class PlantRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deletePlant(id: Long) {
-        if (getPlant(id) != null) plantDao.deleteById(id)
+        val plant = getPlant(id) ?: return
+        plantDao.deleteById(id)
+        photoStorage.delete(plant.photoUri)
     }
 
     override suspend fun registerCare(plantId: Long, type: CareType, date: LocalDate) {

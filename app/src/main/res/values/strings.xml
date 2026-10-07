@@ -79,6 +79,15 @@
     <string name="edit_days_suffix">días</string>
     <string name="edit_light">Luz que necesita</string>
     <string name="edit_notes">Notas</string>
+    <string name="photo_description">Foto de la planta</string>
+    <string name="photo_take">Hacer foto</string>
+    <string name="photo_gallery">Galería</string>
+    <string name="photo_remove">Quitar</string>
+    <string name="camera_permission_title">Permiso de cámara</string>
+    <string name="camera_permission_rationale">PlantCare necesita la cámara para hacer una foto de tu planta. La foto se guarda solo en tu móvil.</string>
+    <string name="camera_permission_denied">Has denegado el permiso de cámara. Puedes activarlo en los ajustes de la app o elegir una foto de la galería.</string>
+    <string name="permission_allow">Permitir</string>
+    <string name="permission_open_settings">Abrir ajustes</string>
     <string name="error_name_required">El nombre es obligatorio</string>
     <string name="error_days_invalid">Introduce un número entre 1 y 365</string>
 

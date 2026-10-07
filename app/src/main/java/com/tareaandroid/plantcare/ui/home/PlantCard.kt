@@ -25,27 +25,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tareaandroid.plantcare.R
 import com.tareaandroid.plantcare.model.Plant
+import com.tareaandroid.plantcare.ui.components.PlantPhoto
 import java.time.LocalDate
 
 /** Tarjeta de una planta en la rejilla de inicio. */
 @Composable
 fun PlantCard(plant: Plant, today: LocalDate, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(onClick = onClick, modifier = modifier.fillMaxWidth()) {
-        // Hueco de la foto: se rellenará con la imagen de la cámara en la fase 7
-        Box(
+        PlantPhoto(
+            photoPath = plant.photoUri,
+            contentDescription = null,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(4f / 3f)
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Outlined.LocalFlorist,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-        }
+                .aspectRatio(4f / 3f),
+        )
         Column(Modifier.padding(12.dp)) {
             Text(
                 plant.name,
