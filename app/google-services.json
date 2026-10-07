@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "179277880780",
+    "project_id": "plantcare-cba07",
+    "storage_bucket": "plantcare-cba07.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:179277880780:android:b40a07653b079d74165169",
+        "android_client_info": {
+          "package_name": "com.tareaandroid.plantcare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5yua1VotovyMN2_a8P-TXSjuWKH153YU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
